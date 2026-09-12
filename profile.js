@@ -86,6 +86,54 @@ Your data is stored locally in user_profile.json and NEVER sent to any LLM.${COL
   return profile;
 }
 
+// ─── Daily Routine Store ──────────────────────────────────────────────
+const ROUTINE_FILE = path.resolve("./daily_routine.json");
+
+export function loadDailyRoutine() {
+  if (!fs.existsSync(ROUTINE_FILE)) return [];
+  try { return JSON.parse(fs.readFileSync(ROUTINE_FILE, "utf-8")); }
+  catch { return []; }
+}
+
+export function saveDailyRoutine(items) {
+  fs.writeFileSync(ROUTINE_FILE, JSON.stringify(items, null, 2));
+}
+
+export async function setupDailyRoutine() {
+  const existing = loadDailyRoutine();
+  console.log(`
+${COLORS.bgMagenta}${COLORS.bright}                                                    ${COLORS.reset}
+${COLORS.bgMagenta}${COLORS.bright}   🛒  Daily Life Routine Shopping Setup            ${COLORS.reset}
+${COLORS.bgMagenta}${COLORS.bright}                                                    ${COLORS.reset}
+
+${COLORS.dim}Set up items you order regularly (e.g., Milk, Eggs, Bread, Coffee).
+SlabRoute will learn the path on First Run and replay instantly with 0 tokens!${COLORS.reset}
+`);
+
+  if (existing.length > 0) {
+    console.log(`  ${COLORS.green}Current Daily Routine Items:${COLORS.reset}`);
+    existing.forEach((item, i) => console.log(`   ${i + 1}. ${item.name} (${item.platform})`));
+    console.log();
+  }
+
+  const items = [...existing];
+  const countStr = await ask(`  ${COLORS.cyan}How many items to add to your daily routine? (e.g. 1-3):${COLORS.reset} `);
+  const count = parseInt(countStr) || 1;
+
+  for (let i = 0; i < count; i++) {
+    console.log(`\n  ${COLORS.yellow}Item ${i + 1}:${COLORS.reset}`);
+    const name = await ask(`   Product Name (e.g. 1 Gallon Whole Milk, Eggs 12-pack): `);
+    const platform = await ask(`   Platform (e.g. Instacart, Blinkit, Zepto, Amazon, Flipkart): `) || "Instacart";
+    if (name) {
+      items.push({ name, platform, added_at: new Date().toISOString() });
+    }
+  }
+
+  saveDailyRoutine(items);
+  console.log(`\n  ${COLORS.green}✅ Daily Routine saved! (${items.length} total items)${COLORS.reset}\n`);
+  return items;
+}
+
 // ─── Auto-fill helper: generates fill instructions for the worker LLM ─
 export function getAutoFillContext(profile) {
   if (!profile) return "";
