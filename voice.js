@@ -156,7 +156,7 @@ try {
 
   fs.writeFileSync(scriptPath, script, "utf-8");
   try {
-    const result = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, {
+    const result = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "${scriptPath}"`, {
       encoding: "utf-8",
       timeout: (durationSec + 12) * 1000,
       stdio: ["pipe", "pipe", "pipe"],
@@ -466,9 +466,9 @@ try {
       process.stdin.on("keypress", onKeypress);
     }
 
-    // Voice listener (async powershell STT spawn)
+    // Voice listener (async powershell STT spawn - hidden)
     sttProcess = spawn("powershell", [
-      "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath
+      "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", scriptPath
     ], { stdio: ["pipe", "pipe", "pipe"] });
 
     let stdoutData = "";
