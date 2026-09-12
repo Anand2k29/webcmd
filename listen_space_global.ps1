@@ -5,7 +5,8 @@
 #   2. High-Frequency Low-Latency Keyboard Hook (GetAsyncKeyState @ 15ms)
 # ─────────────────────────────────────────────────────────────────────
 
-Add-Type -TypeDefinition @"
+if (-not ([System.Management.Automation.PSTypeName]'WinHook').Type) {
+    $winHookCode = @"
 using System;
 using System.Runtime.InteropServices;
 public class WinHook {
@@ -15,11 +16,13 @@ public class WinHook {
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 }
 "@
+    Add-Type -TypeDefinition $winHookCode
+}
 
 Add-Type -AssemblyName System.Speech
 
 Write-Host "======================================================"
-Write-Host "  🤖  A.N.A Global Voice & 3x Spacebar Listener Active"
+Write-Host "  [ANA] A.N.A Global Voice & 3x Spacebar Listener Active"
 Write-Host "======================================================"
 Write-Host "Listening for 'Hello ANA' or 3x Rapid Spacebar taps..."
 Write-Host ""
@@ -29,9 +32,14 @@ $script:batPath = Join-Path $script:scriptDir "Start_ANA.bat"
 
 # ── Single Instance Guard: Terminate duplicate background listener processes ──
 try {
-    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-        $_.CommandLine -and $_.CommandLine.Contains("listen_space_global.ps1") -and $_.ProcessId -ne $PID
-    } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    $currentPid = $PID
+    $procs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue
+    foreach ($p in $procs) {
+        $cmd = $p.CommandLine
+        if ($cmd -and $cmd.Contains("listen_space_global.ps1") -and $p.ProcessId -ne $currentPid) {
+            Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
+        }
+    }
 } catch {}
 
 $script:lastTriggerTime = [DateTime]::Now.AddSeconds(-15)
@@ -42,21 +50,28 @@ function TriggerANA($source) {
         return # Debounce multiple triggers within 8s
     }
 
-    # Check if ANA (index.js or Start_ANA.bat) is already running in an active window
-    $existing = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-        $_.CommandLine -and ($_.CommandLine.Contains("index.js") -or $_.CommandLine.Contains("Start_ANA.bat"))
-    }
+    $alreadyRunning = $false
+    try {
+        $allProcs = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue
+        foreach ($p in $allProcs) {
+            $cmd = $p.CommandLine
+            if ($cmd -and ($cmd.Contains("index.js") -or $cmd.Contains("Start_ANA.bat"))) {
+                $alreadyRunning = $true
+                break
+            }
+        }
+    } catch {}
 
-    if ($existing) {
-        Write-Host "ℹ️ ANA process is already active (PID: $($existing[0].ProcessId)). Skipping launch."
+    if ($alreadyRunning) {
+        Write-Host "[INFO] ANA process is already active. Skipping launch."
         $script:lastTriggerTime = $now
         return
     }
 
     $script:lastTriggerTime = $now
-    Write-Host "🚀 Wake signal detected via $source! Launching ANA..."
+    Write-Host "[WAKE] Wake signal detected via $source! Launching ANA..."
     try {
-        Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$script:batPath`"" -WindowStyle Normal
+        Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $script:batPath -WindowStyle Normal
     } catch {
         Start-Process -FilePath $script:batPath -WindowStyle Normal
     }
@@ -83,7 +98,7 @@ try {
         $text = $Event.SourceEventArgs.Result.Text
         $conf = $Event.SourceEventArgs.Result.Confidence
         if ($text -and $conf -ge 0.60) {
-            Write-Host "🎤 Voice Heard: '$text' (Confidence: $conf)"
+            Write-Host "[MIC] Voice Heard: '$text' (Confidence: $conf)"
             TriggerANA "Voice ('$text')"
         }
     }
@@ -91,9 +106,9 @@ try {
 
     # Start continuous non-blocking async listening
     $sapi.RecognizeAsync([System.Speech.Recognition.RecognizeMode]::Multiple)
-    Write-Host "✅ Continuous Voice Engine active ('Hello ANA')."
+    Write-Host "[OK] Continuous Voice Engine active ('Hello ANA')."
 } catch {
-    Write-Host "⚠️ Voice Engine fallback mode. Keyboard hook active."
+    Write-Host "[WARN] Voice Engine fallback mode. Keyboard hook active."
 }
 
 # ── 2. High-Frequency Low-Latency Keyboard Hook (15ms) ───────────────
@@ -103,7 +118,7 @@ $firstTapTime = [DateTime]::Now
 $lastTapTime = [DateTime]::Now
 $wasPressed = $false
 
-Write-Host "✅ 3x Rapid Spacebar Keyboard Hook active."
+Write-Host "[OK] 3x Rapid Spacebar Keyboard Hook active."
 Write-Host "Ready! Say 'Hello ANA' or tap Spacebar 3 times rapidly to wake ANA."
 Write-Host ""
 
@@ -140,4 +155,5 @@ while ($true) {
     $wasPressed = $isPressed
     Start-Sleep -Milliseconds 15
 }
+
 
