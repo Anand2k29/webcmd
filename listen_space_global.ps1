@@ -6,18 +6,10 @@
 # ─────────────────────────────────────────────────────────────────────
 
 if (-not ([System.Management.Automation.PSTypeName]'WinHook').Type) {
-    $winHookCode = @"
-using System;
-using System.Runtime.InteropServices;
-public class WinHook {
-    [DllImport("user32.dll")]
-    public static extern short GetAsyncKeyState(int vKey);
-    [DllImport("user32.dll")]
-    public static extern bool SetForegroundWindow(IntPtr hWnd);
-}
-"@
+    $winHookCode = 'using System; using System.Runtime.InteropServices; public class WinHook { [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd); }'
     Add-Type -TypeDefinition $winHookCode
 }
+
 
 Add-Type -AssemblyName System.Speech
 
