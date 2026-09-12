@@ -26,6 +26,7 @@ import {
   isVoiceMode, setVoiceMode, stripAnsi, matchesWakeWord,
   detectWakeWordOrKeypress, voiceMenu, narrate,
   greetUser, announceStep, announceCompletion, cleanup,
+  calibrateVoiceProfile, loadVoiceProfile,
 } from "./voice.js";
 
 // ─── Config ──────────────────────────────────────────────────────────
@@ -108,9 +109,10 @@ ${C.cyan}╔══════════════════════�
     console.log(`  ${C.bgBlue}${C.b} 9 ${C.r} ${C.green}🔄  Replay Workflow${C.r}          ${C.d}— Replay a learned workflow${C.r}`);
   }
   console.log(`  ${C.bgCyan}${C.b} 10 ${C.r} ${C.cyan}🎤 Voice Mode${C.r}               ${C.d}— Talk to ANA ("Hello ANA" or 3x Spacebar)${C.r}`);
+  console.log(`  ${C.bgMag}${C.b} 11 ${C.r} ${C.magenta}🎙️ Voice Calibration${C.r}         ${C.d}— Train ANA on your voice profile${C.r}`);
   console.log();
 
-  const choice = await ask(`  ${C.b}Enter choice (1-10):${C.r} `);
+  const choice = await ask(`  ${C.b}Enter choice (1-11):${C.r} `);
 
   switch (choice) {
     case "1": {
@@ -208,6 +210,10 @@ ${C.cyan}╔══════════════════════�
       }
       setVoiceMode(true);
       greetUser();
+      return showMenu();
+    }
+    case "11": {
+      await calibrateVoiceProfile(ask);
       return showMenu();
     }
     default: {

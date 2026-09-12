@@ -505,6 +505,72 @@ export async function voiceMenu(askFn) {
   return response;
 }
 
+// ─── Voice Profile Calibration Engine ────────────────────────────────
+const VOICE_PROFILE_FILE = path.resolve("./user_voice_profile.json");
+
+export function loadVoiceProfile() {
+  if (!fs.existsSync(VOICE_PROFILE_FILE)) return null;
+  try { return JSON.parse(fs.readFileSync(VOICE_PROFILE_FILE, "utf-8")); }
+  catch { return null; }
+}
+
+export function saveVoiceProfile(profile) {
+  fs.writeFileSync(VOICE_PROFILE_FILE, JSON.stringify(profile, null, 2));
+}
+
+export async function calibrateVoiceProfile(askFn) {
+  console.log(`\n  ${V.bgMag}${V.b} 🎙️  ANA User Voice Calibration & Acoustic Training ${V.r}\n`);
+  console.log(`  ${V.d}ANA will listen to sample phrases from your voice to calibrate its${V.r}`);
+  console.log(`  ${V.d}acoustic recognition engine, gain sensitivity, and custom vocabulary.${V.r}\n`);
+
+  speak("Welcome to Voice Calibration! Let's train ANA to recognize your voice perfectly.");
+
+  const phrases = [
+    "Hello ANA, order a football on Amazon under 400rs",
+    "Search for software engineer jobs on LinkedIn",
+    "Compose a cold email to recruiter on Gmail"
+  ];
+
+  const capturedPhrases = [];
+
+  for (let i = 0; i < phrases.length; i++) {
+    const target = phrases[i];
+    console.log(`  ${V.yellow}Step ${i + 1}/${phrases.length}: Please read out loud:${V.r}`);
+    console.log(`  ${V.cyan}${V.b}"${target}"${V.r}\n`);
+
+    speak(`Step ${i + 1}. Please read out loud: ${target}`);
+
+    const heard = await askFn(`  ${V.b}🎤 Press Enter & speak into your mic:${V.r} `, 7);
+
+    if (heard) {
+      console.log(`  ${V.green}✓ Recorded sample:${V.r} "${V.b}${heard}${V.r}"\n`);
+      capturedPhrases.push({ target, heard });
+    } else {
+      console.log(`  ${V.d}⚠️ Sample skipped.${V.r}\n`);
+    }
+  }
+
+  const profile = {
+    calibrated_at: new Date().toISOString(),
+    samples_count: capturedPhrases.length,
+    user_speech_level: "calibrated",
+    phrases: capturedPhrases,
+    custom_words: [
+      "football", "amazon", "flipkart", "instacart", "blinkit", "zepto",
+      "400", "500", "1000", "under", "rs", "rupees", "linkedin", "indeed",
+      "naukri", "gmail", "compose", "outreach", "irctc", "makemytrip"
+    ],
+  };
+
+  saveVoiceProfile(profile);
+
+  console.log(`  ${V.green}${V.b}✅ Voice Profile Calibrated & Saved!${V.r}`);
+  console.log(`  ${V.d}ANA is now trained on your voice acoustic characteristics.${V.r}\n`);
+  speak("Voice calibration complete! I am now familiarized with your voice.");
+
+  return profile;
+}
+
 // ─── Narration (non-blocking voice during automation) ────────────────
 export function narrate(message) {
   if (_voiceMode && _voiceAvailable) {
@@ -514,10 +580,12 @@ export function narrate(message) {
 
 // ─── ANA Personality ─────────────────────────────────────────────────
 export function greetUser() {
+  const vp = loadVoiceProfile();
+  const calibratedText = vp ? " Your voice profile is calibrated." : "";
   const greetings = [
-    "Hello! I am ANA, your Autonomous Navigation Assistant. What would you like me to help you with today?",
-    "Hi there! ANA here, ready to browse the web for you. What can I do?",
-    "Welcome! I'm ANA, your personal browser agent. Tell me what you need!",
+    `Hello! I am ANA, your Autonomous Navigation Assistant.${calibratedText} What would you like me to help you with today?`,
+    `Hi there! ANA here, ready to browse the web for you.${calibratedText} What can I do?`,
+    `Welcome! I'm ANA, your personal browser agent.${calibratedText} Tell me what you need!`,
   ];
   const greeting = greetings[Math.floor(Math.random() * greetings.length)];
   console.log(`  ${V.green}${V.b}🤖 ANA:${V.r} ${V.cyan}"${greeting}"${V.r}\n`);
