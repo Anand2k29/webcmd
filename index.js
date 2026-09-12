@@ -238,7 +238,7 @@ ${C.cyan}╔══════════════════════�
       return showMenu();
     }
     case "11": {
-      await calibrateVoiceProfile(ask);
+      await calibrateVoiceProfile();
       return showMenu();
     }
     default: {

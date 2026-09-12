@@ -221,7 +221,6 @@ try {
     });
 
     function cleanup() {
-      process.stdin.removeListener("data", onData);
       if (sttProcess) {
         try { sttProcess.kill(); } catch {}
         sttProcess = null;
@@ -241,7 +240,7 @@ try {
       resolve(cleaned || null);
     }
 
-    console.log(`\n  ${V.cyan}🎤 ANA Listening...${V.r} ${V.d}(Speak or type directly below & press Enter)${V.r}`);
+    console.log(`\n  ${V.cyan}🎤 ANA Listening...${V.r} ${V.d}(Speak clearly into your mic or type text & press Enter)${V.r}`);
 
     sttProcess = spawn("powershell", [
       "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath
@@ -252,14 +251,6 @@ try {
       stdoutData += chunk.toString();
     });
 
-    const onData = () => {
-      if (sttProcess) {
-        try { sttProcess.kill(); } catch {}
-        sttProcess = null;
-      }
-    };
-    process.stdin.on("data", onData);
-
     sttProcess.on("exit", () => {
       if (resolved) return;
       const text = stdoutData.trim();
@@ -267,11 +258,15 @@ try {
         const cleaned = cleanSpokenText(text);
         process.stdout.write(`\r  ${V.green}🎤 ANA heard:${V.r} "${V.b}${cleaned}${V.r}"\n`);
         finish(cleaned);
+      } else {
+        finish("");
       }
     });
 
     rl.question(`  ${V.b}👉 ${V.r}`, (answer) => {
-      finish(answer);
+      if (answer && answer.trim()) {
+        finish(answer);
+      }
     });
   });
 }
@@ -520,7 +515,7 @@ export function saveVoiceProfile(profile) {
   fs.writeFileSync(VOICE_PROFILE_FILE, JSON.stringify(profile, null, 2));
 }
 
-export async function calibrateVoiceProfile(askFn) {
+export async function calibrateVoiceProfile() {
   console.log(`\n  ${V.bgMag}${V.b} 🎙️  ANA User Voice Calibration & Acoustic Training ${V.r}\n`);
   console.log(`  ${V.d}ANA will listen to sample phrases from your voice to calibrate its${V.r}`);
   console.log(`  ${V.d}acoustic recognition engine, gain sensitivity, and custom vocabulary.${V.r}\n`);
@@ -537,18 +532,19 @@ export async function calibrateVoiceProfile(askFn) {
 
   for (let i = 0; i < phrases.length; i++) {
     const target = phrases[i];
-    console.log(`  ${V.yellow}Step ${i + 1}/${phrases.length}: Please read out loud:${V.r}`);
-    console.log(`  ${V.cyan}${V.b}"${target}"${V.r}\n`);
+    console.log(`\n  ${V.yellow}Step ${i + 1}/${phrases.length}: Please read out loud into your microphone:${V.r}`);
+    console.log(`  ${V.cyan}${V.b}"${target}"${V.r}`);
 
     speak(`Step ${i + 1}. Please read out loud: ${target}`);
 
-    const heard = await askFn(`  ${V.b}🎤 Press Enter & speak into your mic:${V.r} `, 7);
+    // Call voiceAsk directly so microphone STT is guaranteed for calibration!
+    const heard = await voiceAsk(`  ${V.b}🎤 Sample ${i + 1}:${V.r} `, 8);
 
     if (heard) {
-      console.log(`  ${V.green}✓ Recorded sample:${V.r} "${V.b}${heard}${V.r}"\n`);
+      console.log(`  ${V.green}✓ Recorded acoustic sample:${V.r} "${V.b}${heard}${V.r}"\n`);
       capturedPhrases.push({ target, heard });
     } else {
-      console.log(`  ${V.d}⚠️ Sample skipped.${V.r}\n`);
+      console.log(`  ${V.d}⚠️ Sample skipped or not recognized.${V.r}\n`);
     }
   }
 
