@@ -8,6 +8,7 @@ import { execSync, exec, spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import readline from "readline";
+import axios from "axios";
 
 // ─── Config ──────────────────────────────────────────────────────────
 const SPEECH_RATE = 1;            // 1 = natural human conversational speed (was 2)
@@ -306,6 +307,67 @@ export function matchesWakeWord(text) {
   if (/\bok\s*(ana|anna)\b/i.test(lower)) return true;
   if (/^(ana|anna)\b/i.test(lower)) return true;
   return false;
+}
+
+// ─── Ollama AI Wake Word Verification ────────────────────────────────
+export async function matchesWakeWordOllama(text) {
+  if (matchesWakeWord(text)) return true;
+  if (!text || text.length < 3) return false;
+
+  const ollamaUrl = process.env.OLLAMA_URL?.trim() || "http://127.0.0.1:11434";
+  const ollamaModel = process.env.OLLAMA_MODEL?.trim() || "llama3.2";
+
+  try {
+    const endpoint = `${ollamaUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+    const resp = await axios.post(endpoint, {
+      model: ollamaModel,
+      messages: [
+        {
+          role: "system",
+          content: "You are an AI wake-word detector for assistant 'ANA'. Given spoken text from audio speech-to-text (which may have typos/accents), answer strictly 'YES' if the user intended to greet or wake up ANA (e.g., 'hello ana', 'hey anna', 'wake up ana', 'on a', 'hi assistant'), or 'NO' otherwise."
+        },
+        { role: "user", content: text }
+      ],
+      temperature: 0,
+    }, { timeout: 2000 });
+
+    const ans = resp.data.choices?.[0]?.message?.content?.trim()?.toUpperCase();
+    if (ans && ans.includes("YES")) return true;
+  } catch {
+    // Silent fallback to regex matching if Ollama server is offline
+  }
+  return false;
+}
+
+// ─── Ollama Speech Intent Refiner ────────────────────────────────────
+export async function refineVoiceWithOllama(rawSpokenText) {
+  if (!rawSpokenText || rawSpokenText.length < 3) return rawSpokenText;
+
+  const ollamaUrl = process.env.OLLAMA_URL?.trim() || "http://127.0.0.1:11434";
+  const ollamaModel = process.env.OLLAMA_MODEL?.trim() || "llama3.2";
+
+  try {
+    const endpoint = `${ollamaUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+    const resp = await axios.post(endpoint, {
+      model: ollamaModel,
+      messages: [
+        {
+          role: "system",
+          content: "You are a speech intent normalizer. Correct any misheard spoken words, typos, or disjointed speech into a clear user action command for a web browser assistant. Output ONLY the clean action command in 1 line."
+        },
+        { role: "user", content: rawSpokenText }
+      ],
+      temperature: 0.1,
+    }, { timeout: 2500 });
+
+    const text = resp.data.choices?.[0]?.message?.content?.trim();
+    if (text && text.length > 2) {
+      return text.replace(/^["']|["']$/g, "");
+    }
+  } catch {
+    // Silent fallback to rule-based phonetic cleaner
+  }
+  return cleanSpokenText(rawSpokenText);
 }
 
 // ─── Wake Word Detection (race: voice vs 3x Spacebar vs keyboard) ───

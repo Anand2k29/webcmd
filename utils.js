@@ -109,8 +109,36 @@ async function tryLocalClaude(prompt, systemPrompt, options) {
         await sleep(800);
         continue;
       }
-      console.log(`  ⚠️ Local Claude failed (${e.message}), cascading to Tier 2...`);
+      console.log(`  ⚠️ Local Claude failed (${e.message}), cascading to Tier 1B (Ollama)...`);
     }
+  }
+  return null;
+}
+
+// ─── Tier 1B: Local Ollama Model ────────────────────────────────────
+async function tryOllama(prompt, systemPrompt, options) {
+  const ollamaUrl = process.env.OLLAMA_URL?.trim() || "http://127.0.0.1:11434";
+  const ollamaModel = process.env.OLLAMA_MODEL?.trim() || "llama3.2";
+
+  try {
+    const endpoint = `${ollamaUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+    log("🦙", `[Tier 1B] Local Ollama (${ollamaModel})...`, "dim");
+    const resp = await axios.post(endpoint, {
+      model: ollamaModel,
+      messages: [
+        ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+        { role: "user", content: prompt }
+      ],
+      temperature: options.temperature ?? 0.1,
+    }, { timeout: options.timeout || 30000 });
+
+    const text = resp.data.choices?.[0]?.message?.content;
+    if (text) {
+      log("✅", `[Tier 1B] Local Ollama (${ollamaModel}) responded`, "green");
+      return text;
+    }
+  } catch (e) {
+    // Silent failover to Gemini if Ollama server is not running
   }
   return null;
 }
@@ -276,6 +304,10 @@ export async function callGemini(prompt, systemPrompt = "", options = {}) {
   // Tier 1: Local Claude proxy
   const localResult = await tryLocalClaude(prompt, systemPrompt, options);
   if (localResult) return localResult;
+
+  // Tier 1B: Local Ollama model (e.g. llama3.2 / qwen2.5 / mistral)
+  const ollamaResult = await tryOllama(prompt, systemPrompt, options);
+  if (ollamaResult) return ollamaResult;
 
   // Tier 2: Gemini API (multiple keys × multiple models)
   const geminiResult = await tryGemini(prompt, systemPrompt, options);
