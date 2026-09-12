@@ -73,21 +73,18 @@ export function speak(text) {
   if (!cleaned) return;
 
   ensureTempDir();
-  const escaped = escapePS(cleaned);
-  const scriptPath = path.join(TEMP_DIR, "tts.ps1");
-  const script = `
-Add-Type -AssemblyName System.Speech
-$s = New-Object System.Speech.Synthesis.SpeechSynthesizer
-try { $s.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::Female) } catch {}
-$s.Volume = 100
-$s.Rate = ${SPEECH_RATE}
-$s.Speak('${escaped}')
-$s.Dispose()
+  const vbsPath = path.join(TEMP_DIR, "tts.vbs");
+  const vbsScript = `
+Set s = CreateObject("SAPI.SpVoice")
+On Error Resume Next
+s.Rate = 1
+s.Volume = 100
+s.Speak WScript.Arguments(0)
 `.trim();
 
-  fs.writeFileSync(scriptPath, script, "utf-8");
+  fs.writeFileSync(vbsPath, vbsScript, "utf-8");
   try {
-    execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, {
+    execSync(`cscript //NoLogo "${vbsPath}" "${cleaned.replace(/"/g, '""')}"`, {
       timeout: 30000, stdio: "pipe",
     });
   } catch { /* silent */ }
@@ -100,25 +97,22 @@ export function speakAsync(text) {
   if (!cleaned) return;
 
   ensureTempDir();
-  const escaped = escapePS(cleaned);
   const id = Date.now();
-  const scriptPath = path.join(TEMP_DIR, `tts_${id}.ps1`);
-  const script = `
-Add-Type -AssemblyName System.Speech
-$s = New-Object System.Speech.Synthesis.SpeechSynthesizer
-try { $s.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::Female) } catch {}
-$s.Volume = 100
-$s.Rate = ${SPEECH_RATE}
-$s.Speak('${escaped}')
-$s.Dispose()
+  const vbsPath = path.join(TEMP_DIR, `tts_${id}.vbs`);
+  const vbsScript = `
+Set s = CreateObject("SAPI.SpVoice")
+On Error Resume Next
+s.Rate = 1
+s.Volume = 100
+s.Speak WScript.Arguments(0)
 `.trim();
 
-  fs.writeFileSync(scriptPath, script, "utf-8");
-  const child = spawn("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath], {
+  fs.writeFileSync(vbsPath, vbsScript, "utf-8");
+  const child = spawn("cscript", ["//NoLogo", vbsPath, cleaned], {
     stdio: "ignore", detached: true,
   });
   child.unref();
-  child.on("exit", () => { try { fs.unlinkSync(scriptPath); } catch {} });
+  child.on("exit", () => { try { fs.unlinkSync(vbsPath); } catch {} });
 }
 
 // ─── STT: User Speaks (blocking — waits for speech) ──────────────────
@@ -265,7 +259,7 @@ try {
     console.log(`\n  ${V.cyan}🎤 ANA Listening...${V.r} ${V.d}(Speak clearly into your mic or type text & press Enter)${V.r}`);
 
     sttProcess = spawn("powershell", [
-      "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath
+      "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", scriptPath
     ], { stdio: ["pipe", "pipe", "pipe"] });
 
     let stdoutData = "";

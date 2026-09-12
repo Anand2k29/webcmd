@@ -25,6 +25,13 @@ Write-Host ""
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $batPath = Join-Path $scriptDir "Start_ANA.bat"
 
+# ── Single Instance Guard: Terminate duplicate background listener processes to eliminate lag ──
+try {
+    Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.CommandLine -like "*listen_space_global.ps1*" -and $_.ProcessId -ne $PID
+    } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+} catch {}
+
 $lastTriggerTime = [DateTime]::Now.AddSeconds(-10)
 
 function TriggerANA($source) {
