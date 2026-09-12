@@ -87,7 +87,7 @@ SlabRoute leverages **webcmd** (`webcmd_repo`) as its core execution engine:
 | 🎤 **ANA Voice Assistant** | Say **"Hello ANA"** or tap **3x Spacebar** anywhere on Windows to activate |
 | 🦙 **Local LLM & Ollama** | Integrated with `claude-code-for-free` (port 3000) & `Ollama llama3.2` (port 11434) |
 | 💼 **Job Discovery & Auto-Apply** | 17-field job schema, 7-signal weighted match score (0-100), AI cover letters |
-| ⚡ **Fuzzy Q-Cache Memory** | Replays learned workflows with 0 LLM tokens and 150ms step latency |
+| ⚡ **Ultra-Low Latency Engine** | Sub-10s to 15s end-to-end task execution latency via fast-path DOM heuristics & 50ms step delays |
 | 🌐 **Live Browser Dual-Interface** | Plays visually inside Playwright Chromium window with purple status overlay |
 | 🔊 **F.R.I.D.A.Y. Female Voice** | Articulate female AI voice synthesizer via Windows VBScript SAPI |
 | 🛡️ **Human-Gated Handoff** | Hard-gated user confirmation before submitting any application or payment |

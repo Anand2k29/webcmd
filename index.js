@@ -42,7 +42,7 @@ const C = {
   magenta: "\x1b[35m", blue: "\x1b[34m", red: "\x1b[31m",
   bgCyan: "\x1b[46m", bgMag: "\x1b[45m", bgBlue: "\x1b[44m",
 };
-const STEP_DELAY_MS = 150; // ⚡ Ultra-fast 150ms step latency
+const STEP_DELAY_MS = 50; // ⚡ Ultra-fast 50ms step latency
 
 // ─── Terminal helpers (voice-aware & hybrid input) ───────────────────
 async function ask(question, voiceDuration = 5) {
@@ -314,15 +314,16 @@ Given a user goal, decompose it into an ordered list of atomic browser steps.
 
 WEBCMD MENTAL MODEL & RULES:
 1. One step is the atomic unit of browser action.
-2. Include "wait_for_login" on authentication walls or sign-in prompts.
-3. Include "wait_for_payment" ONLY at the final payment/checkout phase. Never complete payment without human handoff.
-4. Use semantic action descriptions that map cleanly to Playwright interactions.
+2. ALWAYS include exact target URLs and exact search terms in single quotes in step descriptions!
+   Example: "Navigate to https://www.amazon.in", "Type 'cheese' in search bar and press Enter"
+3. Include "wait_for_login" on authentication walls or sign-in prompts.
+4. Include "wait_for_payment" ONLY at the final payment/checkout phase. Never complete payment without human handoff.
 5. Return ONLY a raw JSON array of strings.
 
 Supported Task Patterns:
 • Shopping (Amazon / Flipkart / e-commerce):
-  1. Navigate to target site or search engine
-  2. Type product in search bar and press Enter
+  1. Navigate to target site (e.g. "Navigate to https://www.amazon.in")
+  2. Type product in search bar and press Enter (e.g. "Type 'cheese' in search bar and press Enter")
   3. Click target product link from search results
   4. Click "Add to Cart" or "Buy Now"
   5. Go to Cart / Click "Proceed to Checkout"
@@ -351,7 +352,7 @@ ${profileContext ? `User profile for auto-filling:\n${profileContext}` : ''}`;
 
   log("🧠", "Planning with LLM (webcmd-browser mode)...", "dim");
   try {
-    const response = await callGemini(goal, systemPrompt, { timeout: 30000 });
+    const response = await callGemini(goal, systemPrompt, { timeout: 6000 }); // ⚡ Fast 6s planning timeout
     return safeParseJSON(response);
   } catch (err) {
     log("⚡", `LLM notice (${err.message.slice(0, 60)}...). Using intelligent planner fallback...`, "yellow");
@@ -386,7 +387,7 @@ ${profileContext ? `User profile for auto-filling:\n${profileContext}` : ''}`;
   const domStr = JSON.stringify(smartDOM, null, 1);
   const prompt = `Step: ${stepDescription}\n\nPage: ${smartDOM.url}\nTitle: ${smartDOM.title}\nHeadings: ${(smartDOM.headings || []).join(' | ')}\n\nInteractive Elements (${smartDOM.elementCount} total, showing top ${smartDOM.elements?.length}):\n${domStr.slice(0, 10000)}`;
 
-  const response = await callGemini(prompt, systemPrompt, { timeout: 15000 }); // ⚡ Reduced from 20s
+  const response = await callGemini(prompt, systemPrompt, { timeout: 3500 }); // ⚡ Fast 3.5s worker timeout
   return safeParseJSON(response);
 }
 
@@ -396,7 +397,7 @@ async function executeAction(page, action) {
     case "goto":
       log("🌐", `Navigating to: ${action.value}`, "blue");
       await updateOverlayStatus(page, `Navigating to ${action.value}`);
-      await page.goto(action.value, { waitUntil: "domcontentloaded", timeout: 20000 }); // ⚡ 30s→20s
+      await page.goto(action.value, { waitUntil: "commit", timeout: 8000 }); // ⚡ 8s commit timeout
       await injectOverlay(page); // Re-inject after navigation
       break;
 
@@ -405,11 +406,11 @@ async function executeAction(page, action) {
       await updateOverlayStatus(page, `Clicking: ${action.selector}`);
       await highlightElement(page, action.selector);
       try {
-        await page.waitForSelector(action.selector, { timeout: 3000 }); // ⚡ 5s→3s
-        await page.click(action.selector, { timeout: 3000 });
+        await page.waitForSelector(action.selector, { timeout: 1200 }); // ⚡ 1.2s timeout
+        await page.click(action.selector, { timeout: 1200 });
       } catch {
         log("🔄", "Retrying click with force...", "yellow");
-        await page.click(action.selector, { timeout: 3000, force: true });
+        await page.click(action.selector, { timeout: 1200, force: true });
       }
       break;
 
@@ -417,16 +418,16 @@ async function executeAction(page, action) {
       log("⌨️", `Typing: "${action.value}" → ${action.selector}`, "green");
       await updateOverlayStatus(page, `Typing: "${action.value}"`);
       await highlightElement(page, action.selector);
-      await page.waitForSelector(action.selector, { timeout: 3000 });
-      await page.fill(action.selector, action.value, { timeout: 3000 });
+      await page.waitForSelector(action.selector, { timeout: 1200 });
+      await page.fill(action.selector, action.value, { timeout: 1200 });
       break;
 
     case "type_and_enter":
       log("⌨️", `Typing + Enter: "${action.value}" → ${action.selector}`, "green");
       await updateOverlayStatus(page, `Searching: "${action.value}"`);
       await highlightElement(page, action.selector);
-      await page.waitForSelector(action.selector, { timeout: 3000 });
-      await page.fill(action.selector, action.value, { timeout: 3000 });
+      await page.waitForSelector(action.selector, { timeout: 1200 });
+      await page.fill(action.selector, action.value, { timeout: 1200 });
       await page.press(action.selector, "Enter");
       break;
 
@@ -475,7 +476,7 @@ function getActivePage(context, currentPage) {
 }
 
 // ─── Zero-API DOM Heuristic Fallback (Bulletproof against rate limits) ──
-async function tryHeuristicAction(page, stepDescription, profile) {
+async function tryHeuristicAction(page, stepDescription, profile, goal = "") {
   const desc = stepDescription.toLowerCase();
 
   // 1. Fill address/profile details heuristic
@@ -603,7 +604,10 @@ async function tryHeuristicAction(page, stepDescription, profile) {
       'input[name="q"]',
     ];
     const queryMatch = desc.match(/type ['"](.+?)['"]|type (.+?) in/i);
-    const query = queryMatch ? (queryMatch[1] || queryMatch[2]) : "";
+    let query = queryMatch ? (queryMatch[1] || queryMatch[2]) : "";
+    if (!query && goal) {
+      query = extractCoreEntity(goal);
+    }
     if (query) {
       for (const sel of searchSelectors) {
         try {
@@ -795,34 +799,31 @@ async function executeStepSmart(context, pageInput, stepDescription, recordedAct
       await updateOverlayStatus(page, `🤖 Analyzing: "${stepDescription}"`);
 
       if (retries === 0) {
-        log("🤖", "Extracting smart DOM + asking LLM...", "dim");
-        try {
-          const smartDOM = await extractSmartDOM(page);
-          actionJSON = await askWorker(stepDescription, smartDOM, profile);
-        } catch (err) {
-          if (err.isRateLimit || err.statusCode === 429 || err.message.includes("429")) {
-            log("⚡", `[HTTP 429 Rate Limit] Executing via Zero-API Pure Playwright DOM Engine...`, "yellow");
-          } else {
-            log("⚡", `LLM notice (${err.message.slice(0, 70)}...). Trying DOM heuristic...`, "yellow");
+        // ⚡ Fast Path: Try DOM heuristic FIRST (0ms latency, 0 tokens!)
+        actionJSON = await tryHeuristicAction(page, stepDescription, profile, goal);
+        
+        if (!actionJSON) {
+          log("🤖", "Extracting smart DOM + asking LLM...", "dim");
+          try {
+            const smartDOM = await extractSmartDOM(page);
+            actionJSON = await askWorker(stepDescription, smartDOM, profile);
+          } catch (err) {
+            log("⚡", `LLM notice (${err.message.slice(0, 70)}...). Trying DOM heuristic fallback...`, "yellow");
+            actionJSON = await tryHeuristicAction(page, stepDescription, profile, goal);
           }
-          actionJSON = await tryHeuristicAction(page, stepDescription, profile);
-          if (!actionJSON) {
-            await new Promise(r => setTimeout(r, 800));
-            page = getActivePage(context, page);
-            actionJSON = await tryHeuristicAction(page, stepDescription, profile);
-          }
-          if (!actionJSON) {
-            log("⚡", `DOM heuristic complete for step: "${stepDescription}"`, "cyan");
-            success = true;
-            recordedActions.push({ action: "done", description: stepDescription });
-            return;
-          }
+        }
+
+        if (!actionJSON) {
+          log("⚡", `DOM heuristic complete for step: "${stepDescription}"`, "cyan");
+          success = true;
+          recordedActions.push({ action: "done", description: stepDescription });
+          return;
         }
       } else {
         log("⚡", `Retry ${retries}/${MAX_RETRIES}: Checking DOM heuristic fallback...`, "yellow");
         await new Promise(r => setTimeout(r, 800));
         page = getActivePage(context, page);
-        actionJSON = await tryHeuristicAction(page, stepDescription, profile);
+        actionJSON = await tryHeuristicAction(page, stepDescription, profile, goal);
         if (!actionJSON) {
           log("⚠️", "DOM heuristic completed for step.", "yellow");
           success = true;

@@ -95,7 +95,7 @@ async function tryLocalClaude(prompt, systemPrompt, options) {
         { role: "user", content: prompt }
       ],
       temperature: options.temperature ?? 0,
-    }, { timeout: options.timeout || 2500 }); // Fast 2.5s timeout
+    }, { timeout: options.timeout || 1200 }); // ⚡ Ultra-fast 1.2s timeout
 
     const text = resp.data.choices?.[0]?.message?.content || resp.data.content?.[0]?.text;
     if (text) {
@@ -123,7 +123,7 @@ async function tryOllama(prompt, systemPrompt, options) {
         { role: "user", content: prompt }
       ],
       temperature: options.temperature ?? 0.1,
-    }, { timeout: options.timeout || 2500 }); // Fast 2.5s timeout
+    }, { timeout: options.timeout || 1500 }); // ⚡ Ultra-fast 1.5s timeout
 
     const text = resp.data.choices?.[0]?.message?.content;
     if (text) {
@@ -171,7 +171,7 @@ async function tryGemini(prompt, systemPrompt, options) {
         const resp = await axios.post(url, {
           contents: [{ parts }],
           generationConfig: { temperature: options.temperature ?? 0 },
-        }, { timeout: options.timeout || 30000 });
+        }, { timeout: options.timeout || 6000 }); // ⚡ Fast 6s timeout
 
         const text = resp.data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!text) throw new Error("Empty response from Gemini");
