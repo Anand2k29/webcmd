@@ -10,9 +10,9 @@ import path from "path";
 import readline from "readline";
 
 // ─── Config ──────────────────────────────────────────────────────────
-const SPEECH_RATE = 2;            // -10 (slowest) to 10 (fastest)
-const DEFAULT_LISTEN_SEC = 6;     // Default STT duration
-const CONFIDENCE_THRESHOLD = 0.25; // Min confidence for STT
+const SPEECH_RATE = 1;            // 1 = natural human conversational speed (was 2)
+const DEFAULT_LISTEN_SEC = 8;     // Extended STT duration for relaxed speaking
+const CONFIDENCE_THRESHOLD = 0.20; // Confidence threshold for STT
 const TEMP_DIR = path.resolve("./.ana_temp");
 
 let _voiceAvailable = null;
@@ -37,11 +37,13 @@ function stripAnsi(text) {
 
 function cleanForSpeech(text) {
   return stripAnsi(text)
+    .replace(/https?:\/\/\S+/gi, "link")   // Replace URLs with "link"
     .replace(/[═╔╗╚╝║─┐┌└┘│▓░▒█]/g, "")   // Box chars
-    .replace(/[^\x20-\x7E\s]/g, " ")         // Non-ASCII → space
-    .replace(/\s+/g, " ")                     // Normalize whitespace
+    .replace(/[\[\]\(\)\{\}\*\#\_\~]/g, " ") // Markdown special chars -> space
+    .replace(/[^\x20-\x7E\s]/g, " ")       // Non-ASCII → space
+    .replace(/\s+/g, " ")                   // Normalize whitespace
     .trim()
-    .slice(0, 500);
+    .slice(0, 450);
 }
 
 function escapePS(text) {
@@ -76,6 +78,7 @@ export function speak(text) {
 Add-Type -AssemblyName System.Speech
 $s = New-Object System.Speech.Synthesis.SpeechSynthesizer
 try { $s.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::Female) } catch {}
+$s.Volume = 100
 $s.Rate = ${SPEECH_RATE}
 $s.Speak('${escaped}')
 $s.Dispose()
@@ -103,6 +106,7 @@ export function speakAsync(text) {
 Add-Type -AssemblyName System.Speech
 $s = New-Object System.Speech.Synthesis.SpeechSynthesizer
 try { $s.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::Female) } catch {}
+$s.Volume = 100
 $s.Rate = ${SPEECH_RATE}
 $s.Speak('${escaped}')
 $s.Dispose()
@@ -128,6 +132,8 @@ Start-Sleep -Milliseconds 400
 $r = New-Object System.Speech.Recognition.SpeechRecognitionEngine
 try {
   $r.SetInputToDefaultAudioDevice()
+  $r.InitialSilenceTimeout = [TimeSpan]::FromSeconds(3.5)
+  $r.EndSilenceTimeout = [TimeSpan]::FromSeconds(1.5)
   $g = New-Object System.Speech.Recognition.DictationGrammar
   $r.LoadGrammar($g)
   $result = $r.Recognize([TimeSpan]::FromSeconds(${durationSec}))
@@ -165,7 +171,10 @@ export function cleanSpokenText(text) {
     .replace(/\bama\s*zon\b/gi, "amazon")
     .replace(/\bflip\s*kart\b/gi, "flipkart")
     .replace(/\bdon and for\b/gi, "football under 400rs")
-    .replace(/\bunder\s*for\b/gi, "under 400");
+    .replace(/\bunder\s*(for|four)\b/gi, "under 400")
+    .replace(/\bsoft\s*ware\s*eng\b/gi, "software engineer")
+    .replace(/\bcold\s*email\b/gi, "cold mail")
+    .replace(/\bapply\s*to\s*job\b/gi, "apply to job");
   return clean;
 }
 
@@ -175,6 +184,16 @@ export async function voiceAsk(promptText, listenSec = DEFAULT_LISTEN_SEC) {
   if (clean) {
     speakAsync(clean);
   }
+
+  // Load custom vocabulary from user voice profile if present
+  const vp = loadVoiceProfile();
+  const customWords = vp?.custom_words || [
+    "order", "buy", "football", "amazon", "flipkart", "under", "rupees", "rs",
+    "400", "500", "1000", "search", "apply", "jobs", "gmail", "mail", "milk",
+    "eggs", "laptop", "phone", "book", "flight", "software engineer", "linkedin",
+    "recruiter", "cold email", "compose"
+  ];
+  const wordsPS = customWords.map(w => `"${w.replace(/"/g, '""')}"`).join(", ");
 
   return new Promise((resolve) => {
     let resolved = false;
@@ -189,11 +208,13 @@ Add-Type -AssemblyName System.Speech
 $r = New-Object System.Speech.Recognition.SpeechRecognitionEngine
 try {
   $r.SetInputToDefaultAudioDevice()
+  $r.InitialSilenceTimeout = [TimeSpan]::FromSeconds(3.5)
+  $r.EndSilenceTimeout = [TimeSpan]::FromSeconds(1.5)
   $dict = New-Object System.Speech.Recognition.DictationGrammar
   $r.LoadGrammar($dict)
   try {
     $choices = New-Object System.Speech.Recognition.Choices
-    $choices.Add([string[]]@("order", "buy", "football", "amazon", "flipkart", "under", "rupees", "rs", "400", "500", "1000", "search", "apply", "jobs", "gmail", "mail", "milk", "eggs", "laptop", "phone", "book", "flight"))
+    $choices.Add([string[]]@(${wordsPS}))
     $gb = New-Object System.Speech.Recognition.GrammarBuilder($choices)
     $g = New-Object System.Speech.Recognition.Grammar($gb)
     $r.LoadGrammar($g)
