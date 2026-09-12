@@ -65,9 +65,19 @@ SlabRoute leverages **webcmd** (`webcmd_repo`) as its core execution engine:
 | 🔊 **F.R.I.D.A.Y. Female Voice** | Articulate female AI voice synthesizer via Windows VBScript SAPI |
 | 🛡️ **Human-Gated Handoff** | Hard-gated user confirmation before submitting any application or payment |
 
+## 🌍 Universal Web Automation & Multi-Task Capabilities
+
+SlabRoute + **webcmd** is **not limited to job applications** — it is a **universal, general-purpose web agent** designed for **all web tasks** across any site:
+
+- 🛒 **E-Commerce & Shopping**: Search products, compare prices, filter items (*e.g. "Order a football on Amazon under ₹400"*).
+- 📧 **Recruiter Cold Mailing & Outreach**: Draft and send targeted outreach emails with personalized profile summaries.
+- 🔍 **Deep Web Research**: Autonomous multi-page navigation, data extraction, and synthesis.
+- 💼 **Job Discovery & Auto-Apply**: 17-field schema matching, 7-signal scoring, and automated application staging.
+- 📝 **Automated Form Filling & Booking**: Handles complex forms, drop-downs, and logins with learned Q-cache speed.
+
 ---
 
-## 💼 Job Discovery & Application Agent (Antigravity Spec)
+## 💼 Job Discovery & Automated Application Engine
 
 SlabRoute includes a daily Job Discovery engine:
 
@@ -82,7 +92,6 @@ SlabRoute includes a daily Job Discovery engine:
   - Competition Level (5%)
 - **Batch Range Selection**: Supports `1-4`, `1,2,3`, `1-5` to stage multiple applications in live Playwright Chromium.
 
----
 
 ## 🎤 ANA Voice Assistant & Background Listener
 
