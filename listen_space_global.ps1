@@ -2,7 +2,7 @@
 # listen_space_global.ps1 — Continuous Asynchronous Background Listener for ANA
 # Dual-Engine:
 #   1. Continuous Asynchronous Voice Engine (System.Speech RecognizeAsync)
-#   2. High-Frequency Low-Latency Keyboard Hook (GetAsyncKeyState @ 25ms)
+#   2. High-Frequency Low-Latency Keyboard Hook (GetAsyncKeyState @ 15ms)
 # ─────────────────────────────────────────────────────────────────────
 
 Add-Type -TypeDefinition @"
@@ -11,6 +11,8 @@ using System.Runtime.InteropServices;
 public class WinHook {
     [DllImport("user32.dll")]
     public static extern short GetAsyncKeyState(int vKey);
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
 }
 "@
 
@@ -19,13 +21,13 @@ Add-Type -AssemblyName System.Speech
 Write-Host "======================================================"
 Write-Host "  🤖  A.N.A Global Voice & 3x Spacebar Listener Active"
 Write-Host "======================================================"
-Write-Host "Listening for 'Hello ANA' or 3x Spacebar taps..."
+Write-Host "Listening for 'Hello ANA' or 3x Rapid Spacebar taps..."
 Write-Host ""
 
 $script:scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $script:batPath = Join-Path $script:scriptDir "Start_ANA.bat"
 
-# ── Single Instance Guard: Terminate duplicate background listener processes to eliminate lag ──
+# ── Single Instance Guard: Terminate duplicate background listener processes ──
 try {
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
         $_.CommandLine -and $_.CommandLine.Contains("listen_space_global.ps1") -and $_.ProcessId -ne $PID
@@ -36,9 +38,21 @@ $script:lastTriggerTime = [DateTime]::Now.AddSeconds(-15)
 
 function TriggerANA($source) {
     $now = [DateTime]::Now
-    if (($now - $script:lastTriggerTime).TotalSeconds -lt 10) {
-        return # Debounce multiple triggers within 10s
+    if (($now - $script:lastTriggerTime).TotalSeconds -lt 8) {
+        return # Debounce multiple triggers within 8s
     }
+
+    # Check if ANA (index.js or Start_ANA.bat) is already running in an active window
+    $existing = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.CommandLine -and ($_.CommandLine.Contains("index.js") -or $_.CommandLine.Contains("Start_ANA.bat"))
+    }
+
+    if ($existing) {
+        Write-Host "ℹ️ ANA process is already active (PID: $($existing[0].ProcessId)). Skipping launch."
+        $script:lastTriggerTime = $now
+        return
+    }
+
     $script:lastTriggerTime = $now
     Write-Host "🚀 Wake signal detected via $source! Launching ANA..."
     try {
@@ -64,11 +78,11 @@ try {
     $g = New-Object System.Speech.Recognition.Grammar($gb)
     $sapi.LoadGrammar($g)
 
-    # Register Asynchronous Event Handler with high confidence filter (0.65+)
+    # Register Asynchronous Event Handler with confidence filter (0.60+)
     $action = {
         $text = $Event.SourceEventArgs.Result.Text
         $conf = $Event.SourceEventArgs.Result.Confidence
-        if ($text -and $conf -ge 0.65) {
+        if ($text -and $conf -ge 0.60) {
             Write-Host "🎤 Voice Heard: '$text' (Confidence: $conf)"
             TriggerANA "Voice ('$text')"
         }
@@ -82,13 +96,15 @@ try {
     Write-Host "⚠️ Voice Engine fallback mode. Keyboard hook active."
 }
 
-# ── 2. High-Frequency Keyboard Hook Loop (25ms) ──────────────────────
+# ── 2. High-Frequency Low-Latency Keyboard Hook (15ms) ───────────────
+# Requires 3 rapid spacebar taps where each tap is within 450ms of the previous tap
 $spaceCount = 0
-$lastTime = [DateTime]::Now
+$firstTapTime = [DateTime]::Now
+$lastTapTime = [DateTime]::Now
 $wasPressed = $false
 
-Write-Host "✅ 3x Spacebar Keyboard Hook active."
-Write-Host "Ready! Say 'Hello ANA' or tap Spacebar 3 times to wake ANA."
+Write-Host "✅ 3x Rapid Spacebar Keyboard Hook active."
+Write-Host "Ready! Say 'Hello ANA' or tap Spacebar 3 times rapidly to wake ANA."
 Write-Host ""
 
 while ($true) {
@@ -97,19 +113,31 @@ while ($true) {
 
     if ($isPressed -and -not $wasPressed) {
         $now = [DateTime]::Now
-        if (($now - $lastTime).TotalMilliseconds -lt 1600) {
+        $msSinceLastTap = ($now - $lastTapTime).TotalMilliseconds
+
+        # A valid tap in a rapid sequence must occur within 450ms of the previous tap
+        if ($msSinceLastTap -lt 450) {
             $spaceCount++
         } else {
             $spaceCount = 1
+            $firstTapTime = $now
         }
-        $lastTime = $now
+        $lastTapTime = $now
 
+        # Require 3 taps within 900ms total duration
         if ($spaceCount -ge 3) {
-            $spaceCount = 0
-            TriggerANA "3x Spacebar"
+            $totalMs = ($now - $firstTapTime).TotalMilliseconds
+            if ($totalMs -le 900) {
+                $spaceCount = 0
+                TriggerANA "3x Rapid Spacebar ($([Math]::Round($totalMs))ms)"
+            } else {
+                $spaceCount = 1
+                $firstTapTime = $now
+            }
         }
     }
 
     $wasPressed = $isPressed
-    Start-Sleep -Milliseconds 25
+    Start-Sleep -Milliseconds 15
 }
+
