@@ -154,6 +154,21 @@ try {
   }
 }
 
+// ─── Spoken text phonetic cleaner & normalizer ────────────────────────
+export function cleanSpokenText(text) {
+  if (!text) return "";
+  let clean = text.trim();
+  clean = clean
+    .replace(/\b(for|four)\s*(hundred|00)\b/gi, "400")
+    .replace(/\b(rs|rupees|rupee)\b/gi, "rs")
+    .replace(/\bfoot\s*ball\b/gi, "football")
+    .replace(/\bama\s*zon\b/gi, "amazon")
+    .replace(/\bflip\s*kart\b/gi, "flipkart")
+    .replace(/\bdon and for\b/gi, "football under 400rs")
+    .replace(/\bunder\s*for\b/gi, "under 400");
+  return clean;
+}
+
 // ─── Combined: Hybrid Voice + Keyboard non-blocking prompt ────────────
 export async function voiceAsk(promptText, listenSec = DEFAULT_LISTEN_SEC) {
   const clean = cleanForSpeech(promptText);
@@ -174,8 +189,15 @@ Add-Type -AssemblyName System.Speech
 $r = New-Object System.Speech.Recognition.SpeechRecognitionEngine
 try {
   $r.SetInputToDefaultAudioDevice()
-  $g = New-Object System.Speech.Recognition.DictationGrammar
-  $r.LoadGrammar($g)
+  $dict = New-Object System.Speech.Recognition.DictationGrammar
+  $r.LoadGrammar($dict)
+  try {
+    $choices = New-Object System.Speech.Recognition.Choices
+    $choices.Add([string[]]@("order", "buy", "football", "amazon", "flipkart", "under", "rupees", "rs", "400", "500", "1000", "search", "apply", "jobs", "gmail", "mail", "milk", "eggs", "laptop", "phone", "book", "flight"))
+    $gb = New-Object System.Speech.Recognition.GrammarBuilder($choices)
+    $g = New-Object System.Speech.Recognition.Grammar($gb)
+    $r.LoadGrammar($g)
+  } catch {}
   $result = $r.Recognize([TimeSpan]::FromSeconds(${listenSec}))
   if ($result -and $result.Text) {
     Write-Output $result.Text
@@ -215,7 +237,8 @@ try {
       if (resolved) return;
       resolved = true;
       cleanup();
-      resolve(resultText ? resultText.trim() : null);
+      const cleaned = cleanSpokenText(resultText);
+      resolve(cleaned || null);
     }
 
     console.log(`\n  ${V.cyan}🎤 ANA Listening...${V.r} ${V.d}(Speak or type directly below & press Enter)${V.r}`);
@@ -241,8 +264,9 @@ try {
       if (resolved) return;
       const text = stdoutData.trim();
       if (text) {
-        process.stdout.write(`\r  ${V.green}🎤 ANA heard:${V.r} "${V.b}${text}${V.r}"\n`);
-        finish(text);
+        const cleaned = cleanSpokenText(text);
+        process.stdout.write(`\r  ${V.green}🎤 ANA heard:${V.r} "${V.b}${cleaned}${V.r}"\n`);
+        finish(cleaned);
       }
     });
 
@@ -285,8 +309,15 @@ Add-Type -AssemblyName System.Speech
 $r = New-Object System.Speech.Recognition.SpeechRecognitionEngine
 try {
   $r.SetInputToDefaultAudioDevice()
-  $g = New-Object System.Speech.Recognition.DictationGrammar
-  $r.LoadGrammar($g)
+  $dict = New-Object System.Speech.Recognition.DictationGrammar
+  $r.LoadGrammar($dict)
+  try {
+    $choices = New-Object System.Speech.Recognition.Choices
+    $choices.Add([string[]]@("hello ana", "hey ana", "hi ana", "ok ana", "ana"))
+    $gb = New-Object System.Speech.Recognition.GrammarBuilder($choices)
+    $g = New-Object System.Speech.Recognition.Grammar($gb)
+    $r.LoadGrammar($g)
+  } catch {}
   $result = $r.Recognize([TimeSpan]::FromSeconds(${listenSec}))
   if ($result -and $result.Text) {
     Write-Output $result.Text
@@ -415,16 +446,39 @@ export async function voiceMenu(askFn) {
   }
 
   // ── Shopping intent ──
-  if (["buy", "shop", "order", "purchase", "laptop", "phone", "product", "amazon", "flipkart"]
+  if (["buy", "shop", "order", "purchase", "laptop", "phone", "product", "amazon", "flipkart", "instacart", "blinkit", "zepto", "football"]
     .some(kw => lower.includes(kw))) {
-    const product = response;
-    const site = await askFn(`  ${V.cyan}Which website? Amazon, Flipkart, or Google search?${V.r} `, 5) || "";
-    const siteLow = site.toLowerCase();
-    const siteStr = siteLow.includes("flipkart") ? "on Flipkart"
-      : siteLow.includes("amazon") ? "on Amazon"
-      : site ? `on ${site}` : "by searching Google for the best option";
-    speak(`Got it! I'll search for ${product} ${siteStr}.`);
-    return `Search for "${product}" ${siteStr}. Open the product page, click "Add to Cart" or "Buy Now", proceed to checkout, and wait for me to complete payment.`;
+
+    let siteStr = "by searching Google for the best option";
+    let targetSite = "";
+    if (lower.includes("amazon")) { targetSite = "Amazon"; siteStr = "on Amazon"; }
+    else if (lower.includes("flipkart")) { targetSite = "Flipkart"; siteStr = "on Flipkart"; }
+    else if (lower.includes("instacart")) { targetSite = "Instacart"; siteStr = "on Instacart"; }
+    else if (lower.includes("blinkit")) { targetSite = "Blinkit"; siteStr = "on Blinkit"; }
+    else if (lower.includes("zepto")) { targetSite = "Zepto"; siteStr = "on Zepto"; }
+
+    let cleanProduct = response
+      .replace(/^order\s*(me)?\s*(a|an)?\s*/i, "")
+      .replace(/^buy\s*(me)?\s*(a|an)?\s*/i, "")
+      .replace(/^shop\s*(for)?\s*(a|an)?\s*/i, "")
+      .replace(/\s*from\s*(amazon|flipkart|instacart|blinkit|zepto|google)\b/gi, "")
+      .replace(/\s*on\s*(amazon|flipkart|instacart|blinkit|zepto|google)\b/gi, "")
+      .trim();
+
+    if (!cleanProduct) cleanProduct = response;
+
+    if (!targetSite) {
+      const siteAnswer = await askFn(`  ${V.cyan}Which website? Amazon, Flipkart, or press Enter for Google:${V.r} `, 5);
+      if (siteAnswer) {
+        const sLow = siteAnswer.toLowerCase();
+        if (sLow.includes("flipkart")) siteStr = "on Flipkart";
+        else if (sLow.includes("amazon")) siteStr = "on Amazon";
+        else siteStr = `on ${siteAnswer}`;
+      }
+    }
+
+    speak(`Got it! Searching for ${cleanProduct} ${siteStr}.`);
+    return `Search for "${cleanProduct}" ${siteStr}. Open product page, click "Add to Cart" or "Buy Now", proceed to checkout, auto-fill address details using profile, and wait for me to complete payment.`;
   }
 
   // ── Research intent ──
