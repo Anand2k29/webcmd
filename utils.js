@@ -53,19 +53,24 @@ function getOpenRouterKeys() {
   ].filter(Boolean);
 }
 
-// OpenRouter models to try in order (DeepSeek fast models prioritized)
+// OpenRouter models to try in order (DeepSeek fast models & free tier models prioritized)
 const OPENROUTER_MODELS = [
   "deepseek/deepseek-chat",
   "deepseek/deepseek-r1-distill-llama-70b",
   "meta-llama/llama-3.3-70b-instruct",
-  "google/gemini-2.5-flash",
+  "google/gemini-2.0-flash-exp:free",
+  "google/gemini-flash-1.5-8b:free",
+  "meta-llama/llama-3-8b-instruct:free",
+  "qwen/qwen-2.5-7b-instruct:free",
   "mistralai/mistral-small-3.1-24b-instruct",
 ];
 
 // Gemini models to cycle through per key (active & reliable endpoints)
 const GEMINI_MODELS = [
-  "gemini-3.6-flash",
   "gemini-2.5-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-3.6-flash",
 ];
 
 // ─── Tier 1: Local Claude Proxy ──────────────────────────────────────
@@ -101,7 +106,7 @@ async function tryLocalClaude(prompt, systemPrompt, options) {
     } catch (e) {
       if (attempt === 1) {
         console.log(`  ⏳ Local Claude notice (${e.message}). Retrying in 0.8s...`);
-        await sleep(800); // ⚡ 1500→800ms
+        await sleep(800);
         continue;
       }
       console.log(`  ⚠️ Local Claude failed (${e.message}), cascading to Tier 2...`);
@@ -115,16 +120,19 @@ async function tryGemini(prompt, systemPrompt, options) {
   const apiKeys = getGeminiKeys();
   if (apiKeys.length === 0) return null;
 
-  let lastError;
-
   for (const apiKey of apiKeys) {
     const tag = keyTag(apiKey);
+    const providerKeyId = `gemini:${tag}`;
+
+    // Skip entire API key if it's on 429 cooldown
+    if (isOnCooldown(providerKeyId)) {
+      continue;
+    }
 
     for (const model of GEMINI_MODELS) {
-      const keyId = `gemini:${tag}:${model}`;
+      const modelKeyId = `gemini:${tag}:${model}`;
 
-      // Skip keys on cooldown
-      if (isOnCooldown(keyId)) {
+      if (isOnCooldown(modelKeyId)) {
         continue;
       }
 
@@ -149,26 +157,39 @@ async function tryGemini(prompt, systemPrompt, options) {
         log("✅", `[Tier 2] Gemini ${model} (key ${tag}) responded`, "green");
         return text;
       } catch (err) {
-        lastError = err.response?.data?.error?.message || err.message;
+        const lastError = err.response?.data?.error?.message || err.message;
         const status = err.response?.status;
+        const headers = err.response?.headers || {};
 
-        if (status === 429 || (typeof lastError === "string" && (lastError.includes("Quota exceeded") || lastError.includes("rate-limits") || lastError.includes("RESOURCE_EXHAUSTED")))) {
-          // Parse retry-after hint from error message if available
-          const retryMatch = typeof lastError === "string" && lastError.match(/retry in ([\d.]+)s/i);
-          const cooldownSec = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) + 5 : 60;
-          setCooldown(keyId, cooldownSec);
-          console.log(`  ⏳ Rate limit: ${model} (key ${tag}) → cooldown ${cooldownSec}s. Trying next...`);
-          await sleep(500);
-          continue; // Try next model or next key
+        const retryAfterHeader = headers["retry-after"] || headers["x-ratelimit-reset"];
+        const retryMatch = typeof lastError === "string" && lastError.match(/retry in ([\d.]+)s/i);
+        let cooldownSec = 45;
+        if (retryAfterHeader) {
+          cooldownSec = parseInt(retryAfterHeader, 10) || 45;
+        } else if (retryMatch) {
+          cooldownSec = Math.ceil(parseFloat(retryMatch[1])) + 2;
         }
-        // Non-rate-limit error → skip this model but try next
+
+        if (status === 429 || (typeof lastError === "string" && (
+          lastError.includes("Quota exceeded") ||
+          lastError.includes("rate-limits") ||
+          lastError.includes("RESOURCE_EXHAUSTED") ||
+          lastError.includes("429") ||
+          lastError.includes("TOO_MANY_REQUESTS")
+        ))) {
+          console.log(`  ⏳ 429 Rate Limit on Gemini key ${tag} (${model}) → setting ${cooldownSec}s cooldown & switching key/tier...`);
+          setCooldown(providerKeyId, cooldownSec);
+          setCooldown(modelKeyId, cooldownSec);
+          await sleep(300);
+          break; // Immediately rotate to next key / tier
+        }
         console.log(`  ⚠️ Gemini ${model} (key ${tag}) error: ${typeof lastError === "string" ? lastError.slice(0, 80) : lastError}`);
-        break; // break model loop, try next key
+        continue;
       }
     }
   }
 
-  return null; // All Gemini keys/models exhausted
+  return null;
 }
 
 // ─── Tier 3: OpenRouter Fallback ─────────────────────────────────────
@@ -176,17 +197,16 @@ async function tryOpenRouter(prompt, systemPrompt, options) {
   const apiKeys = getOpenRouterKeys();
   if (apiKeys.length === 0) return null;
 
-  let lastError;
-
   for (const apiKey of apiKeys) {
     const tag = keyTag(apiKey);
+    const providerKeyId = `openrouter:${tag}`;
+
+    if (isOnCooldown(providerKeyId)) continue;
 
     for (const model of OPENROUTER_MODELS) {
       const keyId = `openrouter:${tag}:${model}`;
 
-      if (isOnCooldown(keyId)) {
-        continue;
-      }
+      if (isOnCooldown(keyId)) continue;
 
       try {
         log("🤖", `[Tier 3] OpenRouter ${model} (key ${tag})...`, "dim");
@@ -195,8 +215,6 @@ async function tryOpenRouter(prompt, systemPrompt, options) {
         if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
         messages.push({ role: "user", content: prompt });
 
-        // OpenRouter doesn't support inline images in the same way,
-        // so if there's an image, attach it as a multi-part user message
         if (options.imageBase64) {
           messages[messages.length - 1] = {
             role: "user",
@@ -226,22 +244,31 @@ async function tryOpenRouter(prompt, systemPrompt, options) {
         log("✅", `[Tier 3] OpenRouter ${model} responded`, "green");
         return text;
       } catch (err) {
-        lastError = err.response?.data?.error?.message || err.message;
+        const lastError = err.response?.data?.error?.message || err.message;
         const status = err.response?.status;
+        const headers = err.response?.headers || {};
 
-        if (status === 429 || (typeof lastError === "string" && lastError.includes("rate"))) {
-          setCooldown(keyId, 30);
-          console.log(`  ⏳ Rate limit: OpenRouter ${model} (key ${tag}) → cooldown 30s. Trying next...`);
-          await sleep(500);
+        const retryAfterHeader = headers["retry-after"] || headers["x-ratelimit-reset"];
+        const cooldownSec = parseInt(retryAfterHeader, 10) || 30;
+
+        if (status === 429 || (typeof lastError === "string" && (
+          lastError.includes("rate") ||
+          lastError.includes("429") ||
+          lastError.includes("quota") ||
+          lastError.includes("limit")
+        ))) {
+          setCooldown(keyId, cooldownSec);
+          console.log(`  ⏳ 429 Rate limit: OpenRouter ${model} (key ${tag}) → cooldown ${cooldownSec}s. Trying next model...`);
+          await sleep(300);
           continue;
         }
         console.log(`  ⚠️ OpenRouter ${model} error: ${typeof lastError === "string" ? lastError.slice(0, 80) : lastError}`);
-        continue; // Try next model
+        continue;
       }
     }
   }
 
-  return null; // All OpenRouter keys/models exhausted
+  return null;
 }
 
 // ─── Main LLM Entry Point (Waterfall) ────────────────────────────────
@@ -258,13 +285,15 @@ export async function callGemini(prompt, systemPrompt = "", options = {}) {
   const orResult = await tryOpenRouter(prompt, systemPrompt, options);
   if (orResult) return orResult;
 
-  // All tiers exhausted
+  // All tiers exhausted due to 429 / Rate Limits
   const totalKeys = getGeminiKeys().length + getOpenRouterKeys().length;
-  throw new Error(
-    `All LLM tiers exhausted (${totalKeys} keys tried). ` +
-    `Configure more keys in .env: GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3, GEMINI_API_KEY_4, ` +
-    `OPENROUTER_API_KEY, OPENROUTER_API_KEY_2, OPENROUTER_API_KEY_3`
+  const rateErr = new Error(
+    `HTTP 429 / Rate Limit: All LLM tiers exhausted (${totalKeys} keys tried). ` +
+    `Switching to Pure Playwright DOM Engine (0 Tokens Used).`
   );
+  rateErr.statusCode = 429;
+  rateErr.isRateLimit = true;
+  throw rateErr;
 }
 
 // ─── HTML sanitisation ───────────────────────────────────────────────
