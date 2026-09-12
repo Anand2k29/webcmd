@@ -61,12 +61,16 @@ Your data is stored locally in user_profile.json and NEVER sent to any LLM.${COL
     { key: "name", label: "Full Name", example: "Rahul Sharma" },
     { key: "email", label: "Email", example: "rahul@example.com" },
     { key: "phone", label: "Phone Number", example: "+91 98765 43210" },
+    { key: "desired_role", label: "Target Job Title / Role", example: "Software Engineer / React Developer" },
+    { key: "experience_years", label: "Total Experience (Years)", example: "2-4 years" },
+    { key: "skills", label: "Key Skills (comma separated)", example: "JavaScript, TypeScript, Node.js, React, Python" },
+    { key: "target_salary", label: "Expected Salary Band", example: "$120,000 - $160,000 / year or ₹20-35 LPA" },
+    { key: "linkedin_url", label: "LinkedIn Profile URL", example: "https://linkedin.com/in/rahulsharma", optional: true },
+    { key: "github_url", label: "GitHub / Portfolio URL", example: "https://github.com/rahulsharma", optional: true },
     { key: "address_line1", label: "Address Line 1", example: "123, MG Road" },
-    { key: "address_line2", label: "Address Line 2 (optional)", example: "Apt 4B", optional: true },
-    { key: "city", label: "City", example: "Mumbai" },
-    { key: "state", label: "State", example: "Maharashtra" },
-    { key: "pincode", label: "PIN Code / ZIP", example: "400001" },
+    { key: "city", label: "City", example: "Mumbai / Remote" },
     { key: "country", label: "Country", example: "India" },
+    { key: "resume_summary", label: "Resume Summary / Short Bio", example: "Full Stack Engineer with 3+ years experience building web apps and automation APIs", optional: true },
   ];
 
   for (const field of fields) {
@@ -144,13 +148,17 @@ export function getAutoFillContext(profile) {
   if (profile.name) parts.push(`Full name: ${profile.name}`);
   if (profile.email) parts.push(`Email: ${profile.email}`);
   if (profile.phone) parts.push(`Phone: ${profile.phone}`);
+  if (profile.desired_role) parts.push(`Target Role: ${profile.desired_role}`);
+  if (profile.experience_years) parts.push(`Experience: ${profile.experience_years}`);
+  if (profile.skills) parts.push(`Key Skills: ${profile.skills}`);
+  if (profile.target_salary) parts.push(`Target Salary: ${profile.target_salary}`);
+  if (profile.linkedin_url) parts.push(`LinkedIn: ${profile.linkedin_url}`);
+  if (profile.github_url) parts.push(`GitHub/Portfolio: ${profile.github_url}`);
   if (profile.address_line1) parts.push(`Address: ${profile.address_line1}`);
-  if (profile.address_line2) parts.push(`Address Line 2: ${profile.address_line2}`);
   if (profile.city) parts.push(`City: ${profile.city}`);
-  if (profile.state) parts.push(`State: ${profile.state}`);
-  if (profile.pincode) parts.push(`PIN/ZIP: ${profile.pincode}`);
   if (profile.country) parts.push(`Country: ${profile.country}`);
+  if (profile.resume_summary) parts.push(`Resume Summary: ${profile.resume_summary}`);
 
   if (parts.length === 0) return "";
-  return `\n\nUSER PROFILE (use these to auto-fill forms):\n${parts.join("\n")}`;
+  return `\n\nUSER PROFILE & RESUME DATA (use for job matching, cover letters, and auto-filling forms):\n${parts.join("\n")}`;
 }
