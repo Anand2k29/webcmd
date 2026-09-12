@@ -408,6 +408,8 @@ try {
 export async function voiceMenu(askFn) {
   console.log(`\n  ${V.bgMag}${V.b} 🤖 ANA Voice Mode ${V.r}\n`);
   console.log(`  ${V.d}Available voice commands:${V.r}`);
+  console.log(`  ${V.d}  • "Show top 5 jobs"        — Open Daily Top 5 Job Discovery Dashboard${V.r}`);
+  console.log(`  ${V.d}  • "Apply to job 1"         — Auto-fill & apply to Job #1${V.r}`);
   console.log(`  ${V.d}  • "Buy [product]"          — Shop online (Amazon/Flipkart)${V.r}`);
   console.log(`  ${V.d}  • "Search jobs for [role]"  — Search & auto-apply for jobs${V.r}`);
   console.log(`  ${V.d}  • "Cold mail [recruiter]"   — Compose outreach email${V.r}`);
