@@ -1,0 +1,6 @@
+node_modules/
+.env
+workflow_memory.json
+browser_profile/
+user_profile.json
+.ana_temp/

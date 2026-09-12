@@ -1,0 +1,17 @@
+{
+  "name": "slab-route",
+  "version": "1.0.0",
+  "description": "SlabRoute – webcmd-style browser agent with dual-model LLM routing and workflow memory cache",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "install-browsers": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0",
+    "axios": "^1.7.0",
+    "dotenv": "^17.4.2",
+    "playwright": "^1.52.0"
+  }
+}
