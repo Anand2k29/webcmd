@@ -181,13 +181,11 @@ ${C.cyan}───────────────────────�
       return showMenu();
     }
     case "4": {
-      console.log(`\n  ${C.cyan}📧 Cold Email Details:${C.r}`);
-      const recipient = await ask(`  ${C.yellow}Recipient email address or contact?${C.r} ${C.d}(e.g., hr@company.com or Recruiter)${C.r} `);
-      const subject = await ask(`  ${C.yellow}Email subject line?${C.r} ${C.d}(e.g., Software Engineer Role - Inquiry)${C.r} `);
-      const notes = await ask(`  ${C.yellow}Key message highlights?${C.r} ${C.d}(press Enter for standard profile introduction)${C.r} `);
+      console.log(`\n  ${C.cyan}📧 Cold Email Assistant:${C.r}`);
+      const recipient = await ask(`  ${C.yellow}Recipient email address or recruiter contact?${C.r} ${C.d}(press Enter for recruiter/hr@company.com)${C.r} `) || "recruiter/hr@company.com";
+      const subject = await ask(`  ${C.yellow}Email subject line?${C.r} ${C.d}(press Enter for Job Inquiry / Software Engineer Role)${C.r} `) || "Job Inquiry / Software Engineer Role";
 
-      const notesStr = notes ? ` Message notes: ${notes}` : "";
-      return `Open Gmail, click "Compose", set recipient to "${recipient}", set subject to "${subject}", and write personalized outreach email with user profile details.${notesStr}`;
+      return `Open Gmail at https://mail.google.com, wait_for_login, click "Compose" button to open new email draft, set recipient to "${recipient}", set subject to "${subject}", and write personalized outreach email with candidate profile details.`;
     }
     case "5": {
       console.log(`\n  ${C.cyan}📅 Booking Details:${C.r}`);

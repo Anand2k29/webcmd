@@ -353,9 +353,36 @@ ${J.dim}Autonomous Discovery • 7-Signal Weighted Matrix • AI Cover Letters �
   const choice = await askInput(`  ${J.bright}Enter choice (1-5, S, R, M):${J.reset} `);
   const choiceUpper = choice.toUpperCase();
 
-  if (["1", "2", "3", "4", "5"].includes(choice)) {
-    const selectedJob = top5[parseInt(choice) - 1];
-    return await handleJobSelection(selectedJob);
+  // Support single digit (1-5) or ranges like 1-4, 1-3, 1,2,3
+  let selectedIndices = [];
+  const rangeMatch = choice.match(/^(\d)-(\d)$/);
+  if (rangeMatch) {
+    const start = parseInt(rangeMatch[1]);
+    const end = parseInt(rangeMatch[2]);
+    for (let i = start; i <= end; i++) {
+      if (i >= 1 && i <= top5.length) selectedIndices.push(i - 1);
+    }
+  } else if (choice.includes(",")) {
+    selectedIndices = choice.split(",")
+      .map(s => parseInt(s.trim()) - 1)
+      .filter(i => i >= 0 && i < top5.length);
+  } else if (/^[1-5]$/.test(choice.trim())) {
+    selectedIndices = [parseInt(choice.trim()) - 1];
+  }
+
+  if (selectedIndices.length > 0) {
+    if (selectedIndices.length === 1) {
+      const selectedJob = top5[selectedIndices[0]];
+      return await handleJobSelection(selectedJob);
+    }
+    // Multiple jobs selected (e.g. 1-4)
+    const selectedJobs = selectedIndices.map(i => top5[i]);
+    const firstJob = selectedJobs[0];
+    return {
+      action: "AUTO_APPLY_JOB_BATCH",
+      job: firstJob,
+      goal: `Open job application pages for ${selectedJobs.map(j => `"${j.title}" at ${j.company} (${j.application_url})`).join(", ")}, fill contact information using user profile (${profile.name || "Candidate"}, ${profile.email || "email@example.com"}), paste tailored cover letters, and PAUSE BEFORE SUBMITTING to ask user for explicit confirmation.`,
+    };
   }
 
   if (choiceUpper === "S") {
