@@ -951,9 +951,10 @@ ${C.cyan}╔══════════════════════�
     const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
       headless: false,
       viewport: { width: 1366, height: 768 },
-      args: ["--start-maximized"],
+      args: ["--start-maximized", "--disable-blink-features=AutomationControlled"],
     });
     const page = context.pages()[0] || await context.newPage();
+    try { await page.bringToFront(); } catch {}
     await injectOverlay(page);
 
     const replayStartTime = Date.now();
@@ -1031,9 +1032,10 @@ ${C.green}╔══════════════════════�
   const context = await chromium.launchPersistentContext(USER_DATA_DIR, {
     headless: false,
     viewport: { width: 1366, height: 768 },
-    args: ["--start-maximized"],
+    args: ["--start-maximized", "--disable-blink-features=AutomationControlled"],
   });
   const page = context.pages()[0] || await context.newPage();
+  try { await page.bringToFront(); } catch {}
   await injectOverlay(page);
   await updateOverlayStatus(page, "🚀 Starting workflow...");
   narrate("Launching browser. Starting workflow.");
