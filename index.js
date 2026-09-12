@@ -21,6 +21,7 @@ import {
   logAction,
 } from "./utils.js";
 import { loadProfile, setupProfile, hasProfile, getAutoFillContext, loadDailyRoutine, setupDailyRoutine } from "./profile.js";
+import { renderJobDashboard, recordAppliedJob } from "./jobs.js";
 import {
   checkVoiceAvailability, speak, speakAsync, listen, voiceAsk,
   isVoiceMode, setVoiceMode, stripAnsi, matchesWakeWord,
@@ -99,7 +100,7 @@ ${C.cyan}╔══════════════════════�
   console.log(`  ${C.b}What would you like to do?${C.r}\n`);
   console.log(`  ${C.bgCyan}${C.b} 1 ${C.r} ${C.cyan}🛒  Shopping & Daily Routine${C.r} ${C.d}— Milk, Eggs, Groceries (Instacart/Blinkit/Zepto/Amazon)${C.r}`);
   console.log(`  ${C.bgMag}${C.b} 2 ${C.r} ${C.magenta}🔍  Research${C.r}                 ${C.d}— Search, read articles, gather info${C.r}`);
-  console.log(`  ${C.bgBlue}${C.b} 3 ${C.r} ${C.blue}💼  Job Apply${C.r}                ${C.d}— Search & auto-apply for jobs (LinkedIn/Indeed/Naukri)${C.r}`);
+  console.log(`  ${C.bgBlue}${C.b} 3 ${C.r} ${C.blue}💼  Job Discovery & Auto-Apply${C.r}   ${C.d}— Daily Top 5, Match Score, AI Cover Letter${C.r}`);
   console.log(`  ${C.bgCyan}${C.b} 4 ${C.r} ${C.cyan}📧  Cold Mail${C.r}                ${C.d}— Compose & send recruiter outreach (Gmail)${C.r}`);
   console.log(`  ${C.bgMag}${C.b} 5 ${C.r} ${C.magenta}📅  Booking${C.r}                  ${C.d}— Book flights, hotels, trains${C.r}`);
   console.log(`  ${C.bgBlue}${C.b} 6 ${C.r} ${C.blue}📱  Social${C.r}                   ${C.d}— Twitter, LinkedIn social browsing${C.r}`);
@@ -148,15 +149,15 @@ ${C.cyan}╔══════════════════════�
       return `Go to ${whereStr} and research "${topic}". Open the most relevant results, read the content, and gather key information.`;
     }
     case "3": {
-      console.log(`\n  ${C.blue}💼 Job Search & Application Details:${C.r}`);
-      const role = await ask(`  ${C.yellow}Target job role/title?${C.r} ${C.d}(e.g., Software Engineer, React Developer, Data Analyst)${C.r} `);
-      const location = await ask(`  ${C.yellow}Location?${C.r} ${C.d}(e.g., Remote, Bangalore, Mumbai, or press Enter for any)${C.r} `);
-      const site = await ask(`  ${C.yellow}Preferred platform?${C.r} ${C.d}(e.g., LinkedIn, Indeed, Naukri, or press Enter for Google search)${C.r} `);
-
-      const locStr = location ? ` in ${location}` : "";
-      const siteStr = site ? `on ${site}` : "on LinkedIn or Indeed";
-
-      return `Go to ${siteStr}, search for "${role}" jobs${locStr}. Open top matching job postings, click "Easy Apply" or "Apply Now", auto-fill applicant details using user profile, and present application for submission.`;
+      const jobResult = await renderJobDashboard();
+      if (!jobResult) return showMenu();
+      if (jobResult.goal) {
+        if (jobResult.job) {
+          recordAppliedJob(jobResult.job, "Application Page Opened — Pending User Confirmation");
+        }
+        return jobResult.goal;
+      }
+      return showMenu();
     }
     case "4": {
       console.log(`\n  ${C.cyan}📧 Cold Email Details:${C.r}`);
