@@ -27,19 +27,19 @@ $batPath = Join-Path $scriptDir "Start_ANA.bat"
 
 # ── Single Instance Guard: Terminate duplicate background listener processes to eliminate lag ──
 try {
-    Get-WmiObject Win32_Process -ErrorAction SilentlyContinue | Where-Object {
-        $_.CommandLine -like "*listen_space_global.ps1*" -and $_.ProcessId -ne $PID
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.CommandLine -and $_.CommandLine.Contains("listen_space_global.ps1") -and $_.ProcessId -ne $PID
     } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 } catch {}
 
-$lastTriggerTime = [DateTime]::Now.AddSeconds(-10)
+$lastTriggerTime = [DateTime]::Now.AddSeconds(-15)
 
 function TriggerANA($source) {
     global: $lastTriggerTime
     global: $batPath
     $now = [DateTime]::Now
-    if (($now - $lastTriggerTime).TotalSeconds -lt 4) {
-        return # Debounce multiple triggers within 4s
+    if (($now - $lastTriggerTime).TotalSeconds -lt 10) {
+        return # Debounce multiple triggers within 10s
     }
     $lastTriggerTime = $now
     Write-Host "🚀 Wake signal detected via $source! Launching ANA..."
@@ -56,22 +56,21 @@ try {
     $sapi = New-Object System.Speech.Recognition.SpeechRecognitionEngine
     $sapi.SetInputToDefaultAudioDevice()
 
-    # Grammar choices for wake words
+    # Strict Grammar choices for wake words (prevents background noise false triggers)
     $choices = New-Object System.Speech.Recognition.Choices
     $choices.Add([string[]]@(
-        "hello ana", "hey ana", "hi ana", "ok ana", "ana",
-        "hello anna", "hey anna", "hi anna", "wake up ana", "wake up anna",
-        "order a football", "search jobs", "apply to job"
+        "hello ana", "hey ana", "hi ana", "ok ana",
+        "hello anna", "hey anna", "hi anna", "wake up ana", "wake up anna"
     ))
     $gb = New-Object System.Speech.Recognition.GrammarBuilder($choices)
     $g = New-Object System.Speech.Recognition.Grammar($gb)
     $sapi.LoadGrammar($g)
 
-    # Register Asynchronous Event Handler
+    # Register Asynchronous Event Handler with high confidence filter (0.65+)
     $action = {
         $text = $Event.SourceEventArgs.Result.Text
         $conf = $Event.SourceEventArgs.Result.Confidence
-        if ($text -and $conf -gt 0.20) {
+        if ($text -and $conf -ge 0.65) {
             Write-Host "🎤 Voice Heard: '$text' (Confidence: $conf)"
             & $using:function:TriggerANA "Voice ('$text')"
         }

@@ -104,13 +104,10 @@ async function showMenu() {
   }
 
   console.log(`
-${C.cyan}╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║   ${C.b}${C.yellow}🤖  A.N.A — Autonomous Navigation Assistant${C.r}${C.cyan}             ║
-║                                                              ║
-║   ${C.r}${C.d}Explore once. Learn the workflow. Reuse instantly.${C.r}${C.cyan}        ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝${C.r}
+${C.cyan}──────────────────────────────────────────────────────────────${C.r}
+  ${C.b}${C.yellow}🤖  A.N.A  —  Autonomous Navigation Assistant${C.r}
+  ${C.d}Explore once. Learn the workflow. Reuse instantly.${C.r}
+${C.cyan}──────────────────────────────────────────────────────────────${C.r}
 `);
 
   // Show learned workflows
@@ -887,13 +884,10 @@ async function runSlabRoute() {
   const voiceOK = checkVoiceAvailability();
 
   console.log(`
-${C.cyan}╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║   ${C.b}${C.yellow}🤖  A.N.A — Autonomous Navigation Assistant${C.r}${C.cyan}             ║
-║                                                              ║
-║   ${C.r}${C.d}Voice-Activated • Self-Learning • Intelligent${C.r}${C.cyan}             ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝${C.r}
+${C.cyan}──────────────────────────────────────────────────────────────${C.r}
+  ${C.b}${C.yellow}🤖  A.N.A  —  Autonomous Navigation Assistant${C.r}
+  ${C.d}Voice-Activated • Self-Learning • Browser Automation${C.r}
+${C.cyan}──────────────────────────────────────────────────────────────${C.r}
 `);
 
   const forceVoice = process.argv.includes("--voice") || process.argv.includes("-v");

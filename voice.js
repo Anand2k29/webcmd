@@ -77,6 +77,12 @@ export function speak(text) {
   const vbsScript = `
 Set s = CreateObject("SAPI.SpVoice")
 On Error Resume Next
+For Each v In s.GetVoices
+    If InStr(LCase(v.GetDescription), "zira") > 0 Or InStr(LCase(v.GetDescription), "hazel") > 0 Or InStr(LCase(v.GetDescription), "female") > 0 Or InStr(LCase(v.GetDescription), "eva") > 0 Then
+        Set s.Voice = v
+        Exit For
+    End If
+Next
 s.Rate = 1
 s.Volume = 100
 s.Speak WScript.Arguments(0)
@@ -102,6 +108,12 @@ export function speakAsync(text) {
   const vbsScript = `
 Set s = CreateObject("SAPI.SpVoice")
 On Error Resume Next
+For Each v In s.GetVoices
+    If InStr(LCase(v.GetDescription), "zira") > 0 Or InStr(LCase(v.GetDescription), "hazel") > 0 Or InStr(LCase(v.GetDescription), "female") > 0 Or InStr(LCase(v.GetDescription), "eva") > 0 Then
+        Set s.Voice = v
+        Exit For
+    End If
+Next
 s.Rate = 1
 s.Volume = 100
 s.Speak WScript.Arguments(0)
