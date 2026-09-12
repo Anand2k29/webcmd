@@ -86,31 +86,24 @@ async function tryLocalClaude(prompt, systemPrompt, options) {
 
   const localModel = process.env.LOCAL_CLAUDE_MODEL?.trim() || "auto";
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      log("🤖", `[Tier 1] Local Claude (${localModel})...`, "dim");
-      const resp = await axios.post(endpoint, {
-        model: localModel,
-        messages: [
-          ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
-          { role: "user", content: prompt }
-        ],
-        temperature: options.temperature ?? 0,
-      }, { timeout: options.timeout || 45000 });
+  try {
+    log("🤖", `[Tier 1] Local Claude (${localModel})...`, "dim");
+    const resp = await axios.post(endpoint, {
+      model: localModel,
+      messages: [
+        ...(systemPrompt ? [{ role: "system", content: systemPrompt }] : []),
+        { role: "user", content: prompt }
+      ],
+      temperature: options.temperature ?? 0,
+    }, { timeout: options.timeout || 2500 }); // Fast 2.5s timeout
 
-      const text = resp.data.choices?.[0]?.message?.content || resp.data.content?.[0]?.text;
-      if (text) {
-        log("✅", `[Tier 1] Local Claude responded`, "green");
-        return text;
-      }
-    } catch (e) {
-      if (attempt === 1) {
-        console.log(`  ⏳ Local Claude notice (${e.message}). Retrying in 0.8s...`);
-        await sleep(800);
-        continue;
-      }
-      console.log(`  ⚠️ Local Claude failed (${e.message}), cascading to Tier 1B (Ollama)...`);
+    const text = resp.data.choices?.[0]?.message?.content || resp.data.content?.[0]?.text;
+    if (text) {
+      log("✅", `[Tier 1] Local Claude responded`, "green");
+      return text;
     }
+  } catch (e) {
+    console.log(`  ℹ️ Local Claude offline/notice (${e.message.slice(0, 40)}...). Cascading to Tier 1B/2...`);
   }
   return null;
 }
@@ -130,7 +123,7 @@ async function tryOllama(prompt, systemPrompt, options) {
         { role: "user", content: prompt }
       ],
       temperature: options.temperature ?? 0.1,
-    }, { timeout: options.timeout || 30000 });
+    }, { timeout: options.timeout || 2500 }); // Fast 2.5s timeout
 
     const text = resp.data.choices?.[0]?.message?.content;
     if (text) {
@@ -138,7 +131,7 @@ async function tryOllama(prompt, systemPrompt, options) {
       return text;
     }
   } catch (e) {
-    // Silent failover to Gemini if Ollama server is not running
+    // Silent fast failover to Gemini if Ollama server is offline
   }
   return null;
 }
