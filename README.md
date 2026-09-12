@@ -132,15 +132,15 @@ SlabRoute includes a daily Job Discovery engine:
 ## 🌊 Multi-Tier LLM Waterfall
 
 ```env
-Tier 1: Local Claude Proxy (claude-code-for-free) -> http://127.0.0.1:3000/api
-  ↓ (2.5s fast timeout failover)
-Tier 1B: Local Ollama Model (llama3.2 / qwen2.5) -> http://127.0.0.1:11434
-  ↓ (silent failover)
-Tier 2: Gemini API Keys (4 keys × rotation)
+Tier 1: Gemini API Keys (direct Google API models)
+  ↓ (6s timeout / key cooldown rotation)
+Tier 2: OpenRouter API Keys (15+ free tier models cascade: Gemini, DeepSeek, Llama 3.3, Qwen 2.5, Mistral)
   ↓ (key cooldown map)
-Tier 3: OpenRouter Fallback Keys (3 keys × model cascade)
-  ↓ (if all exhausted)
-Tier 4: Zero-API Smart DOM Heuristics (0 Tokens Used)
+Tier 3: Local Claude Proxy (claude-code-for-free @ http://127.0.0.1:3000/api)
+  ↓ (1.2s fast timeout)
+Tier 4: Local Ollama Model (llama3.2 @ http://127.0.0.1:11434)
+  ↓ (if all LLMs exhausted/offline)
+Tier 5: Zero-API Smart DOM Heuristics (0 Tokens Used • sub-15ms execution)
 ```
 
 ---

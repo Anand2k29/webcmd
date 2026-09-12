@@ -37,12 +37,14 @@ function keyTag(key) { return key ? `...${key.slice(-4)}` : "???"; }
 
 // ─── Collect all configured keys ─────────────────────────────────────
 function getGeminiKeys() {
-  return [
+  const keys = [
     process.env.GEMINI_API_KEY?.trim(),
     process.env.GEMINI_API_KEY_2?.trim(),
     process.env.GEMINI_API_KEY_3?.trim(),
     process.env.GEMINI_API_KEY_4?.trim(),
   ].filter(Boolean);
+  // Valid Google Gemini API keys start with "AIzaSy"
+  return keys.filter(k => k.startsWith("AIzaSy"));
 }
 
 function getOpenRouterKeys() {
@@ -53,16 +55,24 @@ function getOpenRouterKeys() {
   ].filter(Boolean);
 }
 
-// OpenRouter models to try in order (DeepSeek fast models & free tier models prioritized)
+// OpenRouter models to try in order (Free tier models & fast models prioritized)
 const OPENROUTER_MODELS = [
-  "deepseek/deepseek-chat",
-  "deepseek/deepseek-r1-distill-llama-70b",
-  "meta-llama/llama-3.3-70b-instruct",
   "google/gemini-2.0-flash-exp:free",
   "google/gemini-flash-1.5-8b:free",
+  "google/gemini-2.0-pro-exp-02-05:free",
+  "deepseek/deepseek-r1:free",
+  "deepseek/deepseek-chat:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "meta-llama/llama-3.1-8b-instruct:free",
   "meta-llama/llama-3-8b-instruct:free",
   "qwen/qwen-2.5-7b-instruct:free",
-  "mistralai/mistral-small-3.1-24b-instruct",
+  "qwen/qwen-2-7b-instruct:free",
+  "mistralai/mistral-7b-instruct:free",
+  "openchat/openchat-7b:free",
+  "microsoft/phi-3-medium-128k-instruct:free",
+  "huggingfaceh4/zephyr-7b-beta:free",
+  "deepseek/deepseek-chat",
+  "deepseek/deepseek-r1-distill-llama-70b",
 ];
 
 // Gemini models to cycle through per key (active & reliable endpoints)
@@ -191,6 +201,16 @@ async function tryGemini(prompt, systemPrompt, options) {
           cooldownSec = Math.ceil(parseFloat(retryMatch[1])) + 2;
         }
 
+        if (status === 400 || status === 403 || (typeof lastError === "string" && (
+          lastError.includes("API key not valid") ||
+          lastError.includes("API_KEY_INVALID") ||
+          lastError.includes("invalid API key")
+        ))) {
+          console.log(`  ⚠️ Invalid Gemini API key ${tag} → disabling key...`);
+          setCooldown(providerKeyId, 86400);
+          break;
+        }
+
         if (status === 429 || (typeof lastError === "string" && (
           lastError.includes("Quota exceeded") ||
           lastError.includes("rate-limits") ||
@@ -294,21 +314,21 @@ async function tryOpenRouter(prompt, systemPrompt, options) {
 
 // ─── Main LLM Entry Point (Waterfall) ────────────────────────────────
 export async function callGemini(prompt, systemPrompt = "", options = {}) {
-  // Tier 1: Local Claude proxy
-  const localResult = await tryLocalClaude(prompt, systemPrompt, options);
-  if (localResult) return localResult;
-
-  // Tier 1B: Local Ollama model (e.g. llama3.2 / qwen2.5 / mistral)
-  const ollamaResult = await tryOllama(prompt, systemPrompt, options);
-  if (ollamaResult) return ollamaResult;
-
-  // Tier 2: Gemini API (multiple keys × multiple models)
+  // Tier 1: Gemini API (primary model - direct Google API)
   const geminiResult = await tryGemini(prompt, systemPrompt, options);
   if (geminiResult) return geminiResult;
 
-  // Tier 3: OpenRouter (multiple keys × multiple models)
+  // Tier 2: OpenRouter API (extensive free model cascade)
   const orResult = await tryOpenRouter(prompt, systemPrompt, options);
   if (orResult) return orResult;
+
+  // Tier 3: Local Claude proxy (if configured/online)
+  const localResult = await tryLocalClaude(prompt, systemPrompt, options);
+  if (localResult) return localResult;
+
+  // Tier 4: Local Ollama model (e.g. llama3.2 / qwen2.5)
+  const ollamaResult = await tryOllama(prompt, systemPrompt, options);
+  if (ollamaResult) return ollamaResult;
 
   // All tiers exhausted due to 429 / Rate Limits
   const totalKeys = getGeminiKeys().length + getOpenRouterKeys().length;
