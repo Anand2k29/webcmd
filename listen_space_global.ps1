@@ -22,8 +22,8 @@ Write-Host "======================================================"
 Write-Host "Listening for 'Hello ANA' or 3x Spacebar taps..."
 Write-Host ""
 
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
-$batPath = Join-Path $scriptDir "Start_ANA.bat"
+$script:scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$script:batPath = Join-Path $script:scriptDir "Start_ANA.bat"
 
 # ── Single Instance Guard: Terminate duplicate background listener processes to eliminate lag ──
 try {
@@ -32,21 +32,19 @@ try {
     } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 } catch {}
 
-$lastTriggerTime = [DateTime]::Now.AddSeconds(-15)
+$script:lastTriggerTime = [DateTime]::Now.AddSeconds(-15)
 
 function TriggerANA($source) {
-    global: $lastTriggerTime
-    global: $batPath
     $now = [DateTime]::Now
-    if (($now - $lastTriggerTime).TotalSeconds -lt 10) {
+    if (($now - $script:lastTriggerTime).TotalSeconds -lt 10) {
         return # Debounce multiple triggers within 10s
     }
-    $lastTriggerTime = $now
+    $script:lastTriggerTime = $now
     Write-Host "🚀 Wake signal detected via $source! Launching ANA..."
     try {
-        Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$batPath`"" -WindowStyle Normal
+        Start-Process -FilePath "cmd.exe" -ArgumentList "/c `"$script:batPath`"" -WindowStyle Normal
     } catch {
-        Start-Process -FilePath $batPath -WindowStyle Normal
+        Start-Process -FilePath $script:batPath -WindowStyle Normal
     }
 }
 
@@ -72,7 +70,7 @@ try {
         $conf = $Event.SourceEventArgs.Result.Confidence
         if ($text -and $conf -ge 0.65) {
             Write-Host "🎤 Voice Heard: '$text' (Confidence: $conf)"
-            & $using:function:TriggerANA "Voice ('$text')"
+            TriggerANA "Voice ('$text')"
         }
     }
     Register-ObjectEvent -InputObject $sapi -EventName "SpeechRecognized" -Action $action | Out-Null
@@ -105,7 +103,6 @@ while ($true) {
             $spaceCount = 1
         }
         $lastTime = $now
-        Write-Host "  🎤 [Space tap $spaceCount/3]"
 
         if ($spaceCount -ge 3) {
             $spaceCount = 0
