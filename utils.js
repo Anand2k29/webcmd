@@ -450,14 +450,49 @@ export function saveMemory(data) {
   fs.writeFileSync(CACHE_FILE, JSON.stringify(data, null, 2));
 }
 
+function calcJaccardSimilarity(str1, str2) {
+  const words1 = new Set(str1.toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(w => w.length > 2));
+  const words2 = new Set(str2.toLowerCase().replace(/[^\w\s]/g, "").split(/\s+/).filter(w => w.length > 2));
+
+  if (words1.size === 0 || words2.size === 0) return 0;
+
+  const intersection = new Set([...words1].filter(x => words2.has(x)));
+  const union = new Set([...words1, ...words2]);
+
+  return intersection.size / union.size;
+}
+
 export function getCachedWorkflow(goal) {
   const mem = loadMemory();
   const key = goal.toLowerCase().trim();
-  const entry = mem[key];
-  if (!entry) return null;
-  // RL Policy check: accept if Q-value > 0 or previously successful
-  if (entry.q_value !== undefined && entry.q_value < -20) return null; // Reject low Q policy
-  return entry;
+
+  // 1. Direct exact match
+  if (mem[key] && (mem[key].q_value === undefined || mem[key].q_value >= -20)) {
+    return mem[key];
+  }
+
+  // 2. Fuzzy Token Overlap Match (Jaccard Similarity >= 0.70)
+  let bestMatch = null;
+  let highestScore = 0;
+
+  for (const storedKey of Object.keys(mem)) {
+    const entry = mem[storedKey];
+    if (!entry || !entry.steps || entry.steps.length === 0) continue;
+    if (entry.q_value !== undefined && entry.q_value < -20) continue;
+
+    const similarity = calcJaccardSimilarity(key, storedKey);
+    if (similarity >= 0.70 && similarity > highestScore) {
+      highestScore = similarity;
+      bestMatch = entry;
+    }
+  }
+
+  if (bestMatch) {
+    log("⚡", `Fuzzy Q-Cache Hit! Similarity: ${Math.round(highestScore * 100)}% (0 LLM Tokens Used)`, "green");
+    return bestMatch;
+  }
+
+  return null;
 }
 
 export function saveWorkflow(goal, steps, complete = false, durationMs = 3000) {

@@ -41,7 +41,7 @@ const C = {
   magenta: "\x1b[35m", blue: "\x1b[34m", red: "\x1b[31m",
   bgCyan: "\x1b[46m", bgMag: "\x1b[45m", bgBlue: "\x1b[44m",
 };
-const STEP_DELAY_MS = 200; // ⚡ Reduced to 200ms for sub-second DOM speed
+const STEP_DELAY_MS = 150; // ⚡ Ultra-fast 150ms step latency
 
 // ─── Terminal helpers (voice-aware & hybrid input) ───────────────────
 async function ask(question, voiceDuration = 5) {
