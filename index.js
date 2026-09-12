@@ -41,16 +41,17 @@ const C = {
 };
 const STEP_DELAY_MS = 200; // ⚡ Reduced to 200ms for sub-second DOM speed
 
-// ─── Terminal helpers (voice-aware) ──────────────────────────────────
-async function ask(question, voiceDuration = 6) {
-  // Voice mode: speak question + listen, fall back to keyboard if no speech
+// ─── Terminal helpers (voice-aware & hybrid input) ───────────────────
+async function ask(question, voiceDuration = 5) {
   if (isVoiceMode()) {
     const plainQ = stripAnsi(question).trim();
-    const result = voiceAsk(plainQ, voiceDuration);
+    const result = await voiceAsk(plainQ, voiceDuration);
     if (result) return result;
-    // Fall through to keyboard
   }
   return new Promise((resolve) => {
+    if (process.stdin.isTTY && process.stdin.setRawMode) {
+      try { process.stdin.setRawMode(false); } catch {}
+    }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     rl.question(question, (answer) => { rl.close(); resolve(answer.trim()); });
   });
@@ -58,6 +59,9 @@ async function ask(question, voiceDuration = 6) {
 
 function waitForEnter(prompt) {
   return new Promise((resolve) => {
+    if (process.stdin.isTTY && process.stdin.setRawMode) {
+      try { process.stdin.setRawMode(false); } catch {}
+    }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     rl.question(prompt, () => { rl.close(); resolve(); });
   });

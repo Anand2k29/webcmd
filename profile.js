@@ -20,6 +20,9 @@ const COLORS = {
 
 function ask(question) {
   return new Promise((resolve) => {
+    if (process.stdin.isTTY && process.stdin.setRawMode) {
+      try { process.stdin.setRawMode(false); } catch {}
+    }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
     rl.question(question, (answer) => { rl.close(); resolve(answer.trim()); });
   });

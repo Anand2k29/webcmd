@@ -154,30 +154,135 @@ try {
   }
 }
 
-// ─── Combined: Speak prompt → Listen for response ────────────────────
-export function voiceAsk(prompt, durationSec = DEFAULT_LISTEN_SEC, maxRetries = 2) {
-  const clean = cleanForSpeech(prompt);
-  speak(clean);
-  // ⚡ Pause briefly so microphone doesn't pick up speaker echo
-  execSync("powershell -NoProfile -ExecutionPolicy Bypass -Command \"Start-Sleep -Milliseconds 500\"");
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    console.log(`  ${V.cyan}🎤 Listening...${V.r} ${V.d}(${durationSec}s)${V.r}`);
-    const result = listen(durationSec);
-
-    if (result) {
-      console.log(`  ${V.green}📝 ANA heard:${V.r} "${V.b}${result}${V.r}"`);
-      return result;
-    }
-
-    if (attempt < maxRetries) {
-      speak("Sorry, I didn't catch that. Could you please repeat?");
-      console.log(`  ${V.yellow}🔄 Listening again...${V.r}`);
-    }
+// ─── Combined: Hybrid Voice + Keyboard non-blocking prompt ────────────
+export async function voiceAsk(promptText, listenSec = DEFAULT_LISTEN_SEC) {
+  const clean = cleanForSpeech(promptText);
+  if (clean) {
+    speakAsync(clean);
   }
 
-  console.log(`  ${V.d}⌨️  Voice not detected. Please type instead:${V.r}`);
-  return null; // Caller falls back to keyboard
+  return new Promise((resolve) => {
+    let resolved = false;
+    let sttProcess = null;
+    let typedBuffer = "";
+    let isTyping = false;
+
+    ensureTempDir();
+    const id = Date.now();
+    const scriptPath = path.join(TEMP_DIR, `stt_${id}.ps1`);
+    const script = `
+Add-Type -AssemblyName System.Speech
+$r = New-Object System.Speech.Recognition.SpeechRecognitionEngine
+try {
+  $r.SetInputToDefaultAudioDevice()
+  $g = New-Object System.Speech.Recognition.DictationGrammar
+  $r.LoadGrammar($g)
+  $result = $r.Recognize([TimeSpan]::FromSeconds(${listenSec}))
+  if ($result -and $result.Text) {
+    Write-Output $result.Text
+  }
+} catch {} finally {
+  try { $r.Dispose() } catch {}
+}
+`.trim();
+
+    fs.writeFileSync(scriptPath, script, "utf-8");
+
+    function cleanup() {
+      if (sttProcess) {
+        try { sttProcess.kill(); } catch {}
+        sttProcess = null;
+      }
+      try { if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath); } catch {}
+      if (process.stdin.isTTY && process.stdin.setRawMode) {
+        try { process.stdin.setRawMode(false); } catch {}
+      }
+      if (onKeypress) {
+        process.stdin.removeListener("keypress", onKeypress);
+      }
+    }
+
+    function finish(resultText) {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve(resultText ? resultText.trim() : null);
+    }
+
+    console.log(`\n  ${V.cyan}🎤 ANA Listening...${V.r} ${V.d}(Speak or start typing directly below)${V.r}`);
+    process.stdout.write(`  ${V.b}👉 ${V.r}`);
+
+    sttProcess = spawn("powershell", [
+      "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath
+    ], { stdio: ["pipe", "pipe", "pipe"] });
+
+    let stdoutData = "";
+    sttProcess.stdout.on("data", (chunk) => {
+      stdoutData += chunk.toString();
+    });
+
+    sttProcess.on("exit", () => {
+      if (resolved || isTyping) return;
+      const text = stdoutData.trim();
+      if (text) {
+        process.stdout.write(`\r  ${V.green}🎤 ANA heard:${V.r} "${V.b}${text}${V.r}"\n`);
+        finish(text);
+      } else {
+        if (!isTyping) {
+          isTyping = true;
+          process.stdout.write(`\r  ${V.d}⌨️  Voice timeout. Type your input and press Enter:${V.r}\n  ${V.b}👉 ${V.r}`);
+        }
+      }
+    });
+
+    let onKeypress = null;
+    if (process.stdin.isTTY) {
+      readline.emitKeypressEvents(process.stdin);
+      if (process.stdin.setRawMode) process.stdin.setRawMode(true);
+
+      onKeypress = (str, key) => {
+        if (resolved) return;
+
+        if (key && key.ctrl && key.name === "c") {
+          cleanup();
+          process.exit(0);
+        }
+
+        // Kill STT background process as soon as typing begins
+        if (!isTyping) {
+          isTyping = true;
+          if (sttProcess) { try { sttProcess.kill(); } catch {} }
+        }
+
+        if (key && (key.name === "return" || key.name === "enter")) {
+          process.stdout.write("\n");
+          finish(typedBuffer);
+          return;
+        }
+
+        if (key && key.name === "backspace") {
+          if (typedBuffer.length > 0) {
+            typedBuffer = typedBuffer.slice(0, -1);
+            process.stdout.write("\b \b");
+          }
+          return;
+        }
+
+        if (str && str.length === 1 && str.charCodeAt(0) >= 32) {
+          typedBuffer += str;
+          process.stdout.write(str);
+        }
+      };
+
+      process.stdin.on("keypress", onKeypress);
+    } else {
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      rl.question("", (ans) => {
+        rl.close();
+        finish(ans);
+      });
+    }
+  });
 }
 
 // ─── Voice Mode State ────────────────────────────────────────────────
@@ -200,58 +305,14 @@ export function matchesWakeWord(text) {
 export function detectWakeWordOrKeypress(listenSec = 7) {
   return new Promise((resolve) => {
     let resolved = false;
-
-    // Keyboard listener for 3x spacebar in node terminal
+    let sttProcess = null;
     let spaceCount = 0;
     let lastSpaceTime = 0;
+    let onKeypress = null;
 
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-    if (process.stdin.isTTY) {
-      readline.emitKeypressEvents(process.stdin);
-      if (process.stdin.setRawMode) process.stdin.setRawMode(true);
-
-      const keypressHandler = (_str, key) => {
-        if (resolved) return;
-        if (key && key.name === "space") {
-          const now = Date.now();
-          if (now - lastSpaceTime < 1500) {
-            spaceCount++;
-          } else {
-            spaceCount = 1;
-          }
-          lastSpaceTime = now;
-          if (spaceCount >= 3) {
-            resolved = true;
-            try { rl.close(); } catch {}
-            if (process.stdin.setRawMode) process.stdin.setRawMode(false);
-            process.stdin.removeListener("keypress", keypressHandler);
-            resolve("voice"); // Wake up ANA!
-            return;
-          }
-        }
-        if (key && key.name === "return") {
-          resolved = true;
-          try { rl.close(); } catch {}
-          if (process.stdin.setRawMode) process.stdin.setRawMode(false);
-          process.stdin.removeListener("keypress", keypressHandler);
-          resolve("keyboard");
-        }
-      };
-      process.stdin.on("keypress", keypressHandler);
-    } else {
-      rl.on("line", () => {
-        if (!resolved) {
-          resolved = true;
-          rl.close();
-          resolve("keyboard");
-        }
-      });
-    }
-
-    // Voice listener (async powershell STT)
     ensureTempDir();
-    const scriptPath = path.join(TEMP_DIR, "wake.ps1");
+    const id = Date.now();
+    const scriptPath = path.join(TEMP_DIR, `wake_${id}.ps1`);
     const script = `
 Add-Type -AssemblyName System.Speech
 $r = New-Object System.Speech.Recognition.SpeechRecognitionEngine
@@ -269,25 +330,77 @@ try {
 `.trim();
 
     fs.writeFileSync(scriptPath, script, "utf-8");
-    exec(`powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptPath}"`, {
-      encoding: "utf-8",
-      timeout: (listenSec + 12) * 1000,
-    }, (_err, stdout) => {
-      if (!resolved) {
-        const text = (stdout || "").trim();
-        if (text && matchesWakeWord(text)) {
-          resolved = true;
-          try { rl.close(); } catch {}
-          if (process.stdin.setRawMode) process.stdin.setRawMode(false);
-          resolve("voice");
-        } else {
-          if (!resolved) {
-            resolved = true;
-            try { rl.close(); } catch {}
-            if (process.stdin.setRawMode) process.stdin.setRawMode(false);
-            resolve("timeout");
+
+    function cleanup() {
+      if (sttProcess) {
+        try { sttProcess.kill(); } catch {}
+        sttProcess = null;
+      }
+      try { if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath); } catch {}
+      if (process.stdin.isTTY && process.stdin.setRawMode) {
+        try { process.stdin.setRawMode(false); } catch {}
+      }
+      if (onKeypress) {
+        process.stdin.removeListener("keypress", onKeypress);
+      }
+    }
+
+    function finish(mode) {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+      resolve(mode);
+    }
+
+    if (process.stdin.isTTY) {
+      readline.emitKeypressEvents(process.stdin);
+      if (process.stdin.setRawMode) process.stdin.setRawMode(true);
+
+      onKeypress = (_str, key) => {
+        if (resolved) return;
+
+        if (key && key.ctrl && key.name === "c") {
+          cleanup();
+          process.exit(0);
+        }
+
+        if (key && key.name === "space") {
+          const now = Date.now();
+          if (now - lastSpaceTime < 1500) {
+            spaceCount++;
+          } else {
+            spaceCount = 1;
+          }
+          lastSpaceTime = now;
+          if (spaceCount >= 3) {
+            finish("voice"); // Wake up ANA!
+            return;
           }
         }
+        if (key && (key.name === "return" || key.name === "enter")) {
+          finish("keyboard");
+        }
+      };
+      process.stdin.on("keypress", onKeypress);
+    }
+
+    // Voice listener (async powershell STT spawn)
+    sttProcess = spawn("powershell", [
+      "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath
+    ], { stdio: ["pipe", "pipe", "pipe"] });
+
+    let stdoutData = "";
+    sttProcess.stdout.on("data", (chunk) => {
+      stdoutData += chunk.toString();
+    });
+
+    sttProcess.on("exit", () => {
+      if (resolved) return;
+      const text = stdoutData.trim();
+      if (text && matchesWakeWord(text)) {
+        finish("voice");
+      } else {
+        finish("timeout");
       }
     });
   });
