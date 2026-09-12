@@ -67,10 +67,10 @@ const OPENROUTER_MODELS = [
 
 // Gemini models to cycle through per key (active & reliable endpoints)
 const GEMINI_MODELS = [
-  "gemini-2.5-flash",
+  "gemini-2.0-flash",
   "gemini-1.5-flash",
   "gemini-1.5-flash-8b",
-  "gemini-3.6-flash",
+  "gemini-1.5-pro",
 ];
 
 // ─── Tier 1: Local Claude Proxy ──────────────────────────────────────
@@ -455,6 +455,17 @@ function calcJaccardSimilarity(str1, str2) {
   return intersection.size / union.size;
 }
 
+export function extractCoreEntity(str) {
+  if (!str) return null;
+  const matchQuoted = str.match(/"([^"]+)"/);
+  if (matchQuoted) return matchQuoted[1].toLowerCase().trim();
+  const matchSearchFor = str.match(/search (?:for )?([a-z0-9\s]+?)(?: on| in| site:|\.|$)/i);
+  if (matchSearchFor) return matchSearchFor[1].toLowerCase().trim();
+  const matchBuy = str.match(/buy ([a-z0-9\s]+?)(?: on| in|\.|$)/i);
+  if (matchBuy) return matchBuy[1].toLowerCase().trim();
+  return null;
+}
+
 export function getCachedWorkflow(goal) {
   const mem = loadMemory();
   const key = goal.toLowerCase().trim();
@@ -464,7 +475,9 @@ export function getCachedWorkflow(goal) {
     return mem[key];
   }
 
-  // 2. Fuzzy Token Overlap Match (Jaccard Similarity >= 0.70)
+  const queryEntity = extractCoreEntity(goal);
+
+  // 2. Fuzzy Token Overlap Match (Jaccard Similarity >= 0.70 & Entity Match)
   let bestMatch = null;
   let highestScore = 0;
 
@@ -472,6 +485,12 @@ export function getCachedWorkflow(goal) {
     const entry = mem[storedKey];
     if (!entry || !entry.steps || entry.steps.length === 0) continue;
     if (entry.q_value !== undefined && entry.q_value < -20) continue;
+
+    // Check entity mismatch (e.g. "milk" vs "eggs")
+    const storedEntity = extractCoreEntity(storedKey);
+    if (queryEntity && storedEntity && queryEntity !== storedEntity) {
+      continue; // Skip cached entries that targeted a different product/entity
+    }
 
     const similarity = calcJaccardSimilarity(key, storedKey);
     if (similarity >= 0.70 && similarity > highestScore) {

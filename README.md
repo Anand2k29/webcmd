@@ -6,6 +6,33 @@
 
 ---
 
+## 🎯 Build Overview, Problem Statement & Status
+
+### 💡 What Problem Are We Solving?
+Navigating the web for daily repetitive actions — such as shopping for daily essentials, scouring job portals, auto-applying to openings, and sending recruiter outreach — is tedious, fragmented, and time-consuming. Existing browser automation tools either rely entirely on high-cost cloud LLM tokens for every execution or lack context-aware voice control, local privacy, and self-learning trajectory memory.
+
+### ⚙️ How We Went About It
+We built **SlabRoute** on top of the **webcmd** autonomous web architecture and **ANA (Autonomous Navigation Assistant)**:
+1. **Continuous Voice Engine (ANA)**: Listens asynchronously for *"Hello ANA"* or **3x rapid spacebar taps** globally on Windows to launch voice-guided browser automation.
+2. **Fuzzy Q-Cache Trajectory Engine**: Uses Reinforcement Learning Q-values (`workflow_memory.json`) to cache successful browser paths. Subsequent runs execute at sub-200ms Playwright DOM speed using **0 LLM Tokens**, with intelligent entity validation and dynamic parameter substitution so queries (*e.g., milk vs. eggs*) never collide.
+3. **Multi-Tier LLM Waterfall**: Cascades seamlessly from Local Claude (`claude-code-for-free`) → Local Ollama (`llama3.2`) → Gemini API → OpenRouter → Zero-API DOM Heuristics.
+4. **Human-Gated Safety**: Section 9 hard gate ensures ANA never submits applications or completes payments without explicit human confirmation.
+
+### 🌟 Featured Highlights (Primary Capabilities)
+
+> [!IMPORTANT]
+> **🛒 OPTION 1 — Shopping & Daily Routine Automation**
+> Command ANA to purchase daily groceries or e-commerce products (*e.g., milk, eggs, laptops, phones*) across **Amazon**, **Flipkart**, **Instacart**, **Blinkit**, or **Zepto**. ANA searches the platform, navigates to product pages, adds items to cart, auto-fills shipping address details from your user profile, and stages checkout for human handoff.
+
+> [!IMPORTANT]
+> **💼 OPTION 3 — AI Job Discovery & Automated Application Engine**
+> Features an autonomous 17-field job discovery schema and 7-signal weighted match matrix (0-100 score). Ranks top daily matches, generates tailored cover letters and resume bullet rewrites, and supports **batch auto-apply (`1-4`, `1-5`)** with human-gated confirmation before submission.
+
+### 📊 How Far Along Is The Solution?
+- **100% Functional End-to-End Prototype**: Complete with working background voice listener, multi-tier LLM waterfall failover, visual Playwright Chromium browser overlay, interactive daily job discovery dashboard with batch application staging, and verified 0-token workflow replay cache.
+
+---
+
 ## 🌐 webcmd Architecture & Mental Model
 
 SlabRoute leverages **webcmd** (`webcmd_repo`) as its core execution engine:

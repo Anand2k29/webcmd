@@ -1,6 +1,36 @@
 {
   "dailyTop5": [
     {
+      "id": "linkedin-stripe-sr-fullstack-2026",
+      "title": "Senior Full Stack Engineer (Node.js & React)",
+      "company": "Stripe",
+      "location": "Remote / San Francisco, CA",
+      "remote_type": "remote",
+      "salary_range": "$145,000 - $185,000 / year",
+      "experience_required": "2-5 years",
+      "requirements": [
+        "JavaScript",
+        "TypeScript",
+        "Node.js",
+        "React",
+        "API Architecture",
+        "Distributed Systems"
+      ],
+      "responsibilities": [
+        "Build scalable payment APIs",
+        "Optimize frontend dashboard performance",
+        "Design microservices"
+      ],
+      "posted_or_updated_date": "2026-09-11",
+      "application_deadline": "2026-10-15",
+      "num_applicants": 28,
+      "open_positions": 3,
+      "company_rating": 4.8,
+      "company_review_snippet": "Top tier engineering culture with high autonomy and modern stack.",
+      "application_url": "https://stripe.com/jobs",
+      "source": "LinkedIn Jobs"
+    },
+    {
       "id": "google-sw-eng-3-web-2026",
       "title": "Software Engineer III - Web Platform",
       "company": "Google",
@@ -28,70 +58,35 @@
       "company_rating": 4.7,
       "company_review_snippet": "Exceptional benefits, smart peers, cutting-edge AI infrastructure.",
       "application_url": "https://careers.google.com",
-      "source": "Company Career Page",
-      "match_score": 81,
-      "match_breakdown": {
-        "skills_30": 24,
-        "title_20": 14,
-        "salary_15": 15,
-        "deadline_10": 6,
-        "rating_10": 9,
-        "freshness_10": 10,
-        "competition_5": 3
-      },
-      "why_suitable": "Anand's explicit background in core algorithms, Python, Web APIs, and React aligns remarkably well with Google's requirements for Web Platform engineers. Located near/in India with hybrid flexibility, this position provides an exceptional career trajectory and salary far surpassing his baseline requirement. The recent posting date makes this a prime opportunity to apply early.",
-      "cover_letter_draft": "Dear Google Recruiting Team,\n\nI am thrilled to apply for the Software Engineer III - Web Platform role at Google in Bangalore. As a Software Engineer with deep grounding in algorithms, data structures, React, and Python, I am passionate about engineering high-throughput web applications that serve millions globally. My experience in API design and performance optimization allows me to tackle complex architectural challenges across the full application stack. Google's commitment to pushing the boundaries of web platforms and AI infrastructure deeply resonates with my professional trajectory. I thrive in collaborative environments where performance tuning and algorithmic efficiency are paramount. I look forward to the possibility of contributing to Google's world-class web platform while continuing to elevate web standards and user experience.",
-      "resume_bullet_rewrites": [
-        "Implemented efficient algorithms and optimized web rendering pipelines in React, improving client-side page load times by 30%.",
-        "Designed and deployed RESTful Web APIs using Python and Java frameworks, supporting high-concurrency client applications.",
-        "Utilized data structures and performance tuning strategies to eliminate memory leaks and enhance overall web platform stability."
-      ]
+      "source": "Company Career Page"
     },
     {
-      "id": "naukri-microsoft-cloud-2026",
-      "title": "Cloud & Backend Software Engineer",
-      "company": "Microsoft",
-      "location": "Hyderabad, India / Remote",
-      "remote_type": "hybrid",
-      "salary_range": "₹24,000,000 - ₹35,000,000 / year",
+      "id": "wellfound-linear-frontend-2026",
+      "title": "Frontend Engineer (React / UI Performance)",
+      "company": "Linear",
+      "location": "Remote (Global)",
+      "remote_type": "remote",
+      "salary_range": "$130,000 - $160,000 / year + Equity",
       "experience_required": "2-4 years",
       "requirements": [
-        "Node.js",
-        "C# / .NET",
-        "Azure",
-        "Distributed Databases",
-        "Microservices"
+        "React",
+        "Next.js",
+        "TailwindCSS",
+        "State Management",
+        "UI Micro-animations"
       ],
       "responsibilities": [
-        "Scale cloud services",
-        "Improve backend reliability",
-        "Write resilient async code"
+        "Craft lightning fast issue tracking UI",
+        "Build custom WebGL components"
       ],
-      "posted_or_updated_date": "2026-09-09",
-      "application_deadline": "2026-10-10",
-      "num_applicants": 89,
-      "open_positions": 6,
-      "company_rating": 4.6,
-      "company_review_snippet": "Great work-life balance and strong career growth support.",
-      "application_url": "https://careers.microsoft.com",
-      "source": "Naukri",
-      "match_score": 78,
-      "match_breakdown": {
-        "skills_30": 18,
-        "title_20": 17,
-        "salary_15": 15,
-        "deadline_10": 8,
-        "rating_10": 9,
-        "freshness_10": 7,
-        "competition_5": 4
-      },
-      "why_suitable": "As a backend-oriented developer proficient in Java and Springboot, Anand's skill set maps closely to Microsoft's cloud backend requirements, microservices architecture, and distributed systems. The position is located in India, providing local relevance alongside exceptional compensation. Microsoft's strong work-life balance and high open position count (6) make this a highly viable target.",
-      "cover_letter_draft": "Dear Microsoft Selection Committee,\n\nI am writing to apply for the Cloud & Backend Software Engineer position at Microsoft in Hyderabad. With strong expertise in backend microservices architecture, Springboot/Java frameworks, API design, and distributed data structures, I am confident in my ability to contribute to Microsoft's resilient cloud ecosystem. Throughout my engineering projects, I have focused on writing scalable, asynchronous code and constructing high-availability backend services. Microsoft's leadership in cloud innovation and culture of continuous growth offer an ideal environment for my technical aspirations. I am eager to apply my experience in backend reliability and system design to scale cloud services effectively within your team.",
-      "resume_bullet_rewrites": [
-        "Designed and maintained scalable backend microservices using Springboot and Java, ensuring 99.9% uptime and low-latency response times.",
-        "Built resilient asynchronous processing pipelines and integrated distributed database components for cloud-scale applications.",
-        "Engineered robust API endpoints and microservices adhering to industry-standard cloud security and design patterns."
-      ]
+      "posted_or_updated_date": "2026-09-10",
+      "application_deadline": "2026-09-30",
+      "num_applicants": 45,
+      "open_positions": 2,
+      "company_rating": 4.9,
+      "company_review_snippet": "Craft-obsessed team building world class developer tools.",
+      "application_url": "https://linear.app/careers",
+      "source": "Wellfound / AngelList"
     },
     {
       "id": "unstop-openai-agent-eng-2026",
@@ -120,116 +115,36 @@
       "company_rating": 4.9,
       "company_review_snippet": "Pioneering AGI research environment with incredible talent density.",
       "application_url": "https://openai.com/careers",
-      "source": "Unstop / OpenAI Careers",
-      "match_score": 76,
-      "match_breakdown": {
-        "skills_30": 20,
-        "title_20": 11,
-        "salary_15": 15,
-        "deadline_10": 7,
-        "rating_10": 10,
-        "freshness_10": 9,
-        "competition_5": 4
-      },
-      "why_suitable": "Anand possesses specialized experience in Retrieval-Augmented Generation (RAG) and Python, making him uniquely suited for OpenAI's agent automation team. His knowledge in prompt engineering and backend algorithms bridges the gap into LLM orchestration. Combined with elite company ratings and high remuneration, this role represents an outstanding frontier AI opportunity.",
-      "cover_letter_draft": "Dear OpenAI Recruiting Team,\n\nI am writing to express my strong enthusiasm for the AI Agent & Browser Automation Engineer role at OpenAI. As a software engineer with hands-on expertise in Retrieval-Augmented Generation (RAG), Python development, and prompt design, I am deeply fascinated by the pursuit of safe and autonomous AI systems. My background in building structured algorithmic pipelines and API integrations positions me well to engineer autonomous agent primitives and browser automation workflows. I am inspired by OpenAI's groundbreaking work in frontier models and AGI research. Joining your team would allow me to combine my core software engineering principles with state-of-the-art AI orchestration techniques to build next-generation autonomous tools.",
-      "resume_bullet_rewrites": [
-        "Engineered RAG systems and LLM orchestration workflows in Python, enhancing contextual accuracy and query processing efficiency.",
-        "Designed autonomous automation scripts and API primitives to execute multi-step programmatic workflows reliably.",
-        "Optimized system algorithms and prompt engineering parameters to maximize execution accuracy and speed."
-      ]
+      "source": "Unstop / OpenAI Careers"
     },
     {
-      "id": "linkedin-stripe-sr-fullstack-2026",
-      "title": "Senior Full Stack Engineer (Node.js & React)",
-      "company": "Stripe",
-      "location": "Remote / San Francisco, CA",
-      "remote_type": "remote",
-      "salary_range": "$145,000 - $185,000 / year",
-      "experience_required": "2-5 years",
+      "id": "naukri-microsoft-cloud-2026",
+      "title": "Cloud & Backend Software Engineer",
+      "company": "Microsoft",
+      "location": "Hyderabad, India / Remote",
+      "remote_type": "hybrid",
+      "salary_range": "₹24,000,000 - ₹35,000,000 / year",
+      "experience_required": "2-4 years",
       "requirements": [
-        "JavaScript",
-        "TypeScript",
         "Node.js",
-        "React",
-        "API Architecture",
-        "Distributed Systems"
+        "C# / .NET",
+        "Azure",
+        "Distributed Databases",
+        "Microservices"
       ],
       "responsibilities": [
-        "Build scalable payment APIs",
-        "Optimize frontend dashboard performance",
-        "Design microservices"
+        "Scale cloud services",
+        "Improve backend reliability",
+        "Write resilient async code"
       ],
-      "posted_or_updated_date": "2026-09-11",
-      "application_deadline": "2026-10-15",
-      "num_applicants": 28,
-      "open_positions": 3,
-      "company_rating": 4.8,
-      "company_review_snippet": "Top tier engineering culture with high autonomy and modern stack.",
-      "application_url": "https://stripe.com/jobs",
-      "source": "LinkedIn Jobs",
-      "match_score": 75,
-      "match_breakdown": {
-        "skills_30": 18,
-        "title_20": 12,
-        "salary_15": 15,
-        "deadline_10": 7,
-        "rating_10": 10,
-        "freshness_10": 9,
-        "competition_5": 4
-      },
-      "why_suitable": "Anand brings strong technical depth in JavaScript, React, and API design that translates well into Stripe's full-stack architecture demands. While the target role focuses on Java, his expertise in microservices and full-stack software development aligns nicely with building scalable APIs. Additionally, the compensation far exceeds his target expectations with manageable applicant competition.",
-      "cover_letter_draft": "Dear Hiring Manager at Stripe,\n\nI am writing to express my enthusiastic interest in the Senior Full Stack Engineer position at Stripe. With a solid foundation in software engineering, API design, and modern web frameworks including React and JavaScript, I am eager to contribute to Stripe's industry-leading financial infrastructure. My background in constructing robust system architectures and optimizing client-side performance aligns directly with your mission to build scalable payment APIs and high-performance frontend dashboards. I have consistently delivered robust services by emphasizing data structures, clean code, and resilient API contracts. Joining Stripe represents an exciting opportunity to leverage my full-stack capabilities in a culture renowned for engineering autonomy and excellence. I am confident that my technical skills and passion for building high-quality developer-facing platforms make me a strong candidate for this role.",
-      "resume_bullet_rewrites": [
-        "Architected scalable web APIs and microservices using JavaScript and modern backend patterns, reducing latency by 25%.",
-        "Engineered responsive, high-performance user interfaces using React, state management, and optimized rendering techniques.",
-        "Applied strict algorithms and data structure practices to design distributed system components handling high throughput."
-      ]
-    },
-    {
-      "id": "indeed-vercel-nextjs-2026",
-      "title": "Core Web Developer - DX Team",
-      "company": "Vercel",
-      "location": "Remote (Worldwide)",
-      "remote_type": "remote",
-      "salary_range": "$120,000 - $150,000 / year",
-      "experience_required": "1-3 years",
-      "requirements": [
-        "Next.js",
-        "Node.js",
-        "TypeScript",
-        "Serverless",
-        "Edge Functions"
-      ],
-      "responsibilities": [
-        "Improve Next.js developer experience",
-        "Maintain core framework open source"
-      ],
-      "posted_or_updated_date": "2026-09-12",
-      "application_deadline": "2026-10-05",
-      "num_applicants": 34,
-      "open_positions": 2,
-      "company_rating": 4.8,
-      "company_review_snippet": "Ship features to millions of developers every single day.",
-      "application_url": "https://vercel.com/careers",
-      "source": "Indeed",
-      "match_score": 71,
-      "match_breakdown": {
-        "skills_30": 15,
-        "title_20": 10,
-        "salary_15": 15,
-        "deadline_10": 8,
-        "rating_10": 10,
-        "freshness_10": 10,
-        "competition_5": 3
-      },
-      "why_suitable": "Anand's JavaScript and React background enables a smooth transition into Vercel's developer experience and web platform ecosystem. The remote nature of the role combined with very fresh posting status (Sept 12) makes it an appealing target. Furthermore, the role leverages his interest in developer tooling and API infrastructure.",
-      "cover_letter_draft": "Dear Vercel DX Team,\n\nI am thrilled to submit my application for the Core Web Developer role on the Developer Experience team at Vercel. As an engineer passionate about modern web ecosystem tooling, React, and serverless architectures, I am eager to help empower millions of developers globally. My background combines algorithmic discipline with practical full-stack web development, giving me a comprehensive perspective on building intuitive developer tools. Vercel's commitment to pushing web standards forward via Next.js aligns perfectly with my drive to build optimized, developer-friendly platforms. I would welcome the opportunity to bring my problem-solving skills and frontend/backend expertise to Vercel's engineering team.",
-      "resume_bullet_rewrites": [
-        "Developed web applications leveraging React and JavaScript, focusing on developer tooling, API efficiency, and fast build times.",
-        "Optimized serverless function execution and client-side rendering performance across distributed web architecture.",
-        "Contributed to open-source software patterns and modular component architecture to streamline developer workflows."
-      ]
+      "posted_or_updated_date": "2026-09-09",
+      "application_deadline": "2026-10-10",
+      "num_applicants": 89,
+      "open_positions": 6,
+      "company_rating": 4.6,
+      "company_review_snippet": "Great work-life balance and strong career growth support.",
+      "application_url": "https://careers.microsoft.com",
+      "source": "Naukri"
     }
   ],
   "savedJobs": [],
@@ -244,7 +159,9 @@
     "https://careers.microsoft.com",
     "https://openai.com/careers",
     "https://stripe.com/jobs",
-    "https://vercel.com/careers"
+    "https://vercel.com/careers",
+    "wellfound-linear-frontend-2026",
+    "https://linear.app/careers"
   ],
   "lastDailyDate": "2026-09-12"
 }

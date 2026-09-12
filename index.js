@@ -19,6 +19,7 @@ import {
   log,
   logStep,
   logAction,
+  extractCoreEntity,
 } from "./utils.js";
 import { loadProfile, setupProfile, hasProfile, getAutoFillContext, loadDailyRoutine, setupDailyRoutine } from "./profile.js";
 import { renderJobDashboard, recordAppliedJob, getDailyTop5Jobs, handleJobSelection } from "./jobs.js";
@@ -278,9 +279,15 @@ function getFallbackPlan(goal, profile) {
     ];
   }
   
-  let query = "football";
-  const match = goal.match(/search for "([^"]+)"|search for ([^.]+)|buy ([^.]+)/i);
-  if (match) query = (match[1] || match[2] || match[3] || "football").trim();
+  let query = "";
+  const matchQuoted = goal.match(/"([^"]+)"/);
+  if (matchQuoted) {
+    query = matchQuoted[1].trim();
+  } else {
+    const match = goal.match(/(?:search for|buy|shop for|find)\s+(.*?)(?:\s+on|\s+in|\s+by|\.|$)/i);
+    if (match) query = match[1].replace(/^(a|an|the|me)\s+/i, "").trim();
+  }
+  if (!query) query = extractCoreEntity(goal) || goal.replace(/^(buy|search|order)\s*/i, "").slice(0, 30).trim() || "product";
 
   let targetSite = "https://www.amazon.in";
   if (goalLower.includes("flipkart")) targetSite = "https://www.flipkart.com";
@@ -976,8 +983,18 @@ ${C.cyan}───────────────────────�
       if (step.action === "skip" || step.action === "error") continue;
       if (step.action === "done") break;
 
+      let stepToRun = { ...step };
+      // Dynamic parameter substitution: if goal specifies a new search term, update typing step value
+      if ((stepToRun.action === "type" || stepToRun.action === "type_and_enter") && stepToRun.value) {
+        const goalEntity = extractCoreEntity(goal);
+        if (goalEntity && stepToRun.value.toLowerCase() !== goalEntity.toLowerCase()) {
+          log("🔄", `Updating replayed search query: "${stepToRun.value}" → "${goalEntity}"`, "cyan");
+          stepToRun.value = goalEntity;
+        }
+      }
+
       try {
-        await executeAction(page, step);
+        await executeAction(page, stepToRun);
         await page.waitForTimeout(STEP_DELAY_MS);
       } catch (err) {
         log("⚠️", `Replay failed: ${err.message}. Continuing...`, "yellow");
