@@ -21,7 +21,7 @@ import {
   logAction,
 } from "./utils.js";
 import { loadProfile, setupProfile, hasProfile, getAutoFillContext, loadDailyRoutine, setupDailyRoutine } from "./profile.js";
-import { renderJobDashboard, recordAppliedJob } from "./jobs.js";
+import { renderJobDashboard, recordAppliedJob, getDailyTop5Jobs, handleJobSelection } from "./jobs.js";
 import {
   checkVoiceAvailability, speak, speakAsync, listen, voiceAsk,
   isVoiceMode, setVoiceMode, stripAnsi, matchesWakeWord,
@@ -74,6 +74,30 @@ async function showMenu() {
   // Voice mode: use natural language menu
   if (isVoiceMode()) {
     const goal = await voiceMenu(ask);
+    if (goal === "__JOB_DASHBOARD__") {
+      const jobResult = await renderJobDashboard();
+      if (!jobResult) return showMenu();
+      if (jobResult.goal) {
+        if (jobResult.job) {
+          recordAppliedJob(jobResult.job, "Application Page Opened — Pending User Confirmation");
+        }
+        return jobResult.goal;
+      }
+      return showMenu();
+    }
+    if (goal && goal.startsWith("__APPLY_JOB_")) {
+      const num = parseInt(goal.replace("__APPLY_JOB_", ""));
+      const top5 = await getDailyTop5Jobs();
+      const selJob = top5[num - 1] || top5[0];
+      if (selJob) {
+        const jobResult = await handleJobSelection(selJob);
+        if (jobResult && jobResult.goal) {
+          recordAppliedJob(selJob, "Application Page Opened — Pending User Confirmation");
+          return jobResult.goal;
+        }
+      }
+      return showMenu();
+    }
     if (goal) return goal;
     // Voice failed → fall through to keyboard menu
     setVoiceMode(false);
@@ -806,12 +830,23 @@ async function executeStepSmart(context, pageInput, stepDescription, recordedAct
 
       logAction(actionJSON);
 
-      // Human approval for sensitive actions
-      const sensitiveKw = ["submit", "pay", "send", "delete", "confirm order", "place order"];
+      // Human approval for sensitive actions & job application submissions (Section 9 Hard Gate)
+      const sensitiveKw = ["submit", "pay", "send", "delete", "confirm order", "place order", "submit application", "apply now"];
       if (sensitiveKw.some((kw) => stepDescription.toLowerCase().includes(kw))) {
-        await updateOverlayStatus(page, "⚠️ Sensitive action — waiting for approval...");
-        log("⚠️", `Sensitive action: ${JSON.stringify(actionJSON)}`, "yellow");
-        await waitForEnter("  → Press ENTER to approve, or Ctrl+C to abort... ");
+        await updateOverlayStatus(page, "⚠️ Section 9 Hard Gate: Human Confirmation Required...");
+        log("⚠️", "════════════════════════════════════════════════════════════", "yellow");
+        log("⚠️", `  SECTION 9 HARD GATE: HUMAN CONFIRMATION REQUIRED!`, "yellow");
+        log("⚠️", `  Action: "${stepDescription}"`, "yellow");
+        log("⚠️", "════════════════════════════════════════════════════════════", "yellow");
+        narrate("Human confirmation required before submitting.");
+        const userApproval = await ask(`  Submit this application now? (Y/N): `);
+        if (!userApproval || !["y", "yes"].includes(userApproval.toLowerCase().trim())) {
+          log("🛑", "Application submission canceled by user. Form staged in browser.", "yellow");
+          await updateOverlayStatus(page, "🛑 Submission Canceled — Staged in Browser");
+          recordedActions.push({ action: "user_cancel", description: stepDescription });
+          saveWorkflow(goal, recordedActions);
+          return;
+        }
       }
 
       await executeAction(page, actionJSON);
