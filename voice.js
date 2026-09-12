@@ -164,8 +164,7 @@ export async function voiceAsk(promptText, listenSec = DEFAULT_LISTEN_SEC) {
   return new Promise((resolve) => {
     let resolved = false;
     let sttProcess = null;
-    let typedBuffer = "";
-    let isTyping = false;
+    let rl = null;
 
     ensureTempDir();
     const id = Date.now();
@@ -188,17 +187,27 @@ try {
 
     fs.writeFileSync(scriptPath, script, "utf-8");
 
+    // Ensure rawMode is OFF so standard readline works 100% natively
+    if (process.stdin.isTTY && process.stdin.setRawMode) {
+      try { process.stdin.setRawMode(false); } catch {}
+    }
+
+    rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: true,
+    });
+
     function cleanup() {
+      process.stdin.removeListener("data", onData);
       if (sttProcess) {
         try { sttProcess.kill(); } catch {}
         sttProcess = null;
       }
       try { if (fs.existsSync(scriptPath)) fs.unlinkSync(scriptPath); } catch {}
-      if (process.stdin.isTTY && process.stdin.setRawMode) {
-        try { process.stdin.setRawMode(false); } catch {}
-      }
-      if (onKeypress) {
-        process.stdin.removeListener("keypress", onKeypress);
+      if (rl) {
+        try { rl.close(); } catch {}
+        rl = null;
       }
     }
 
@@ -209,8 +218,7 @@ try {
       resolve(resultText ? resultText.trim() : null);
     }
 
-    console.log(`\n  ${V.cyan}🎤 ANA Listening...${V.r} ${V.d}(Speak or start typing directly below)${V.r}`);
-    process.stdout.write(`  ${V.b}👉 ${V.r}`);
+    console.log(`\n  ${V.cyan}🎤 ANA Listening...${V.r} ${V.d}(Speak or type directly below & press Enter)${V.r}`);
 
     sttProcess = spawn("powershell", [
       "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", scriptPath
@@ -221,67 +229,26 @@ try {
       stdoutData += chunk.toString();
     });
 
+    const onData = () => {
+      if (sttProcess) {
+        try { sttProcess.kill(); } catch {}
+        sttProcess = null;
+      }
+    };
+    process.stdin.on("data", onData);
+
     sttProcess.on("exit", () => {
-      if (resolved || isTyping) return;
+      if (resolved) return;
       const text = stdoutData.trim();
       if (text) {
         process.stdout.write(`\r  ${V.green}🎤 ANA heard:${V.r} "${V.b}${text}${V.r}"\n`);
         finish(text);
-      } else {
-        if (!isTyping) {
-          isTyping = true;
-          process.stdout.write(`\r  ${V.d}⌨️  Voice timeout. Type your input and press Enter:${V.r}\n  ${V.b}👉 ${V.r}`);
-        }
       }
     });
 
-    let onKeypress = null;
-    if (process.stdin.isTTY) {
-      readline.emitKeypressEvents(process.stdin);
-      if (process.stdin.setRawMode) process.stdin.setRawMode(true);
-
-      onKeypress = (str, key) => {
-        if (resolved) return;
-
-        if (key && key.ctrl && key.name === "c") {
-          cleanup();
-          process.exit(0);
-        }
-
-        // Kill STT background process as soon as typing begins
-        if (!isTyping) {
-          isTyping = true;
-          if (sttProcess) { try { sttProcess.kill(); } catch {} }
-        }
-
-        if (key && (key.name === "return" || key.name === "enter")) {
-          process.stdout.write("\n");
-          finish(typedBuffer);
-          return;
-        }
-
-        if (key && key.name === "backspace") {
-          if (typedBuffer.length > 0) {
-            typedBuffer = typedBuffer.slice(0, -1);
-            process.stdout.write("\b \b");
-          }
-          return;
-        }
-
-        if (str && str.length === 1 && str.charCodeAt(0) >= 32) {
-          typedBuffer += str;
-          process.stdout.write(str);
-        }
-      };
-
-      process.stdin.on("keypress", onKeypress);
-    } else {
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      rl.question("", (ans) => {
-        rl.close();
-        finish(ans);
-      });
-    }
+    rl.question(`  ${V.b}👉 ${V.r}`, (answer) => {
+      finish(answer);
+    });
   });
 }
 
